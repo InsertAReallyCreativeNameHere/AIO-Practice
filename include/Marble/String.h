@@ -1,11 +1,16 @@
 #pragma once
 
 #include <cctype>
+#include <cstdarg>
 #include <cstdint>
 #include <cstring>
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
 #include <list>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 #include <Marble/ManagedArray.h>
 
 #include <iostream>
@@ -109,6 +114,45 @@ namespace Marble
 		{
 			return towupper(c);
 		}
+
+		template <typename CharType, typename Type>
+		struct toString final
+		{
+			toString(const Type& type)
+			{
+				static_assert(false, "BasicString<T>::format cannot be used for a non char/wchar_t BasicString. Create a partial template specialisation for the class [template <typename CharType, typename Type> struct toString final].");
+			}
+		};
+		template <typename Type>
+		struct toString<char, Type> final
+		{
+			toString(const Type& type)
+			{
+				this->str = std::move(fmt::to_string(type));
+			}
+
+			std::basic_string<char>* operator->()
+			{
+				return &str;
+			}
+		private:
+			std::basic_string<char> str;
+		};
+		template <typename Type>
+		struct toString<wchar_t, Type> final
+		{
+			toString(const Type& type)
+			{
+				this->str = std::move(fmt::to_wstring(type));
+			}
+
+			std::basic_string<wchar_t>* operator->()
+			{
+				return &str;
+			}
+		private:
+			std::basic_string<wchar_t> str;
+		};
 
 		template <typename CharType, typename FloatingPointType>
 		FloatingPointType toFloatingPointType(const CharType* str, CharType** endPtr)
@@ -314,7 +358,7 @@ namespace Marble
 		{
 			this->buffer[length] = 0;
 		}
-		BasicString(std::list<BasicString<T>> strings, const BasicString<T>& delimiter) : buffer(1, 0)
+		BasicString(std::vector<BasicString<T>> strings, const BasicString<T>& delimiter) : buffer(1, 0)
 		{
 			if (!strings.empty())
 			{
@@ -366,6 +410,22 @@ namespace Marble
 				other.buffer = ManagedArray<T>();
 			}
 			return *this;
+		}
+
+		template <typename... Args>
+		static BasicString<T> format(const BasicString<T>& format, Args... args)
+		{
+			try
+			{
+				fmt::basic_memory_buffer<T> ret;
+				fmt::format_to(ret.begin(), format.cStr(), args...);
+				return ret.begin();
+			}
+			catch (fmt::format_error)
+			{
+				T err[] { 'F', 'a', 'i', 'l', 'e', 'd', ' ', 't', 'o', ' ', 'f', 'o', 'r', 'm', 'a', 't', '!' };
+				return err;
+			}
 		}
 
 		const T* cStr() const
@@ -449,6 +509,11 @@ namespace Marble
 				return temp;
 			}
 
+			operator pointer ()
+			{
+				return ptr;
+			}
+
 			friend bool operator==(const iterator& lhs, const iterator& rhs)
 			{
 				return lhs.ptr == rhs.ptr;
@@ -507,6 +572,11 @@ namespace Marble
 				iterator temp = *this;
 				++ptr;
 				return temp;
+			}
+
+			operator pointer ()
+			{
+				return ptr;
 			}
 
 			friend bool operator==(const reverse_iterator& lhs, const reverse_iterator& rhs)
@@ -1030,9 +1100,9 @@ namespace Marble
 
 			return *this;
 		}
-		std::list<BasicString<T>> split(const BasicString<T>& delimiter)
+		std::vector<BasicString<T>> split(const BasicString<T>& delimiter)
 		{
-			std::list<BasicString<T>> splitStrings;
+			std::vector<BasicString<T>> splitStrings;
 
 			size_t thisLen = Internal::cstrLen(this->buffer.data());
 
