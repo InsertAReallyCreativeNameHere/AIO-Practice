@@ -4,8 +4,11 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstring>
+#pragma warning(push)
+#pragma warning(disable: 26495 26451 26812 26498)
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
+#pragma warning(pop)
 #include <list>
 #include <string>
 #include <type_traits>
@@ -190,6 +193,8 @@ namespace Marble
 			return wcstold(str, endPtr);
 		}
 
+		#pragma warning(push)
+		#pragma warning(disable:4244)
 		template <typename CharType, typename IntegralType>
 		IntegralType toIntegralType(const CharType* str, CharType** endPtr)
 		{
@@ -295,6 +300,7 @@ namespace Marble
 		{
 			return wcstoull(str, endPtr, 0);
 		}
+		#pragma warning(pop)
 
 		template <typename CharType>
 		size_t cstrLen(const CharType* cstring)

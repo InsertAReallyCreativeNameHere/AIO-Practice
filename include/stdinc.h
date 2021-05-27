@@ -1,6 +1,7 @@
 #pragma once
 
 // Marble.Framework
+#include <Marble/Exception.h>
 #include <Marble/ManagedArray.h>
 #include <Marble/String.h>
 
@@ -24,16 +25,14 @@
 #include <cwchar>
 #include <cwctype>
 
-#if __cplusplus >= 201103L
-#include <ccomplex>
+//#include <ccomplex>
 #include <cfenv>
 #include <cinttypes>
-#include <cstdalign>
-#include <cstdbool>
+//#include <cstdalign>
+//#include <cstdbool>
 #include <cstdint>
-#include <ctgmath>
+//#include <ctgmath>
 #include <cuchar>
-#endif
 
 // C++
 #include <algorithm>
@@ -69,7 +68,6 @@
 #include <valarray>
 #include <vector>
 
-#if __cplusplus >= 201103L
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -90,13 +88,9 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
-#endif
 
-#if __cplusplus >= 201402L
 #include <shared_mutex>
-#endif
 
-#if __cplusplus >= 201703L
 #include <any>
 #include <charconv>
 #include <execution>
@@ -105,23 +99,20 @@
 #include <memory_resource>
 #include <string_view>
 #include <variant>
-#endif
 
-#if __cplusplus > 201703L
-#include <barrier>
+//#include <barrier>
 #include <bit>
 #include <compare>
 #include <concepts>
 #if __cpp_impl_coroutine
-# include <coroutine>
+#   include <coroutine>
 #endif
-#include <latch>
+//#include <latch>
 #include <numbers>
 #include <ranges>
 #include <span>
-#include <stop_token>
-#include <semaphore>
-#include <source_location>
-#include <syncstream>
+//#include <stop_token>
+//#include <semaphore>
+//#include <source_location>
+//#include <syncstream>
 #include <version>
-#endif
