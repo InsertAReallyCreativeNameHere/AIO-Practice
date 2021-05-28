@@ -66,6 +66,18 @@ void test2()
                 {
                     std::cout << ex.what() << std::endl;
                 }
+                try
+                {
+                    lowLevelExceptionsSectionBegin();
+
+                    *(int*)0 = 0;
+
+                    lowLevelExceptionsSectionEnd();
+                }
+                catch (Marble::LowLevelException& ex)
+                {
+                    std::cout << ex.what() << std::endl;
+                }
             }
             /*completed[i] = true;
         }).detach();

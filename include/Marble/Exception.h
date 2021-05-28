@@ -2,7 +2,7 @@
 
 #include <atomic>
 #include <csetjmp>
-#include <../ucrt/signal.h>
+#include <signal.h>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -13,10 +13,17 @@
 #include <utility>
 
 #if _WIN32
+typedef struct IUnknown IUnknown; // Fuck you objbase.h.
 #include <cfloat>
 #include <windows.h>
-#include <errhandlingapi.h>
+#undef min
 #undef max
+#endif
+
+#if (defined(_MSC_VER) && !defined(__clang__)) && defined(_WIN32)
+#define __llex_msvc_win 1
+#else
+#define __llex_msvc_win 0
 #endif
 
 namespace Marble
@@ -28,13 +35,13 @@ namespace Marble
             char str[4096] { 0 };
         };
 
-        void signalHandler(int);
+        extern "C" void __cdecl signalHandler(int);
         #if _WIN32
-        void arithmeticSignalHandler(int, int);
+        extern "C" void __cdecl arithmeticSignalHandler(int, int);
         LONG NTAPI vectoredExceptionHandler(_EXCEPTION_POINTERS*);
         BOOL WINAPI consoleCtrlHandler(DWORD);
         #else
-        void __cdecl interruptHandler(int);
+        extern "C" void __cdecl interruptHandler(int);
         #endif
     }
 
@@ -58,17 +65,17 @@ namespace Marble
         IllegalInstructionException(const char* const __file, const char* const __function, int __line, void* data = nullptr) : LowLevelException([&]() -> Internal::ErrorString
         {
             #if _DEBUG
-                Internal::ErrorString err;
-                strcpy(err.str, "Illegal Instruction:\n\tException thrown:\n\t  in \"");
-                strcpy(err.str + strlen(err.str), __file);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                strcpy(err.str + strlen(err.str), __function);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                sprintf(err.str + strlen(err.str), "%i", __line);
-                strcpy(err.str + strlen(err.str), ".\n\tAn illegal instruction signal was raised:\n\t  Is this executable corrupted?\nSignal handler returned 4 (SIGILL).");
-                return std::move(err);
+            Internal::ErrorString err;
+            strcpy(err.str, "Illegal Instruction:\n\tException thrown:\n\t  in \"");
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy(err.str + strlen(err.str), ".\n\tAn illegal instruction signal was raised:\n\t  Is this executable corrupted?\nSignal handler returned 4 (SIGILL).");
+            return std::move(err);
             #else
-                return { "Illegal instruction exception thrown." };
+            return { "Illegal instruction exception thrown." };
             #endif
         }().str)
         {
@@ -83,25 +90,25 @@ namespace Marble
         ArithmeticException(const char* const __file, const char* const __function, int __line, void* data = nullptr) : LowLevelException([&]() -> Internal::ErrorString
         {
             #if _DEBUG
-                Internal::ErrorString err;
-                strcpy(err.str, "Arithmetic Error:\n\tException thrown:\n\t  in \"");
-                strcpy(err.str + strlen(err.str), __file);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                strcpy(err.str + strlen(err.str), __function);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                sprintf(err.str + strlen(err.str), "%i", __line);
-                strcpy
-                (
-                    err.str + strlen(err.str),
-                    ".\n\tAn arithmetic error occurred.\nSignal handler returned 8 (SIGFPE)"
-                    #if _WIN32
-                    ",\nor a vectored exception handler caught an arithmetic exception"
-                    #endif
-                    "."
-                );
-                return std::move(err);
+            Internal::ErrorString err;
+            strcpy(err.str, "Arithmetic Error:\n\tException thrown:\n\t  in \"");
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy
+            (
+                err.str + strlen(err.str),
+                ".\n\tAn arithmetic error occurred.\nSignal handler returned 8 (SIGFPE)"
+                #if __llex_msvc_win
+                ",\nor a vectored exception handler caught an arithmetic exception"
+                #endif
+                "."
+            );
+            return std::move(err);
             #else
-                return { "Arithmetic exception thrown." };
+            return { "Arithmetic exception thrown." };
             #endif
         }().str)
         {
@@ -116,44 +123,44 @@ namespace Marble
         SegmentationFaultException(const char* const __file, const char* const __function, int __line, void* data = nullptr) : LowLevelException([&]() -> Internal::ErrorString
         {
             #if _DEBUG
-                #if _WIN32
-                    PEXCEPTION_RECORD exrec = (PEXCEPTION_RECORD)data;
-                    Internal::ErrorString err;
-                    strcpy(err.str, "Segmentation Fault:\n\tException thrown:\n\t  in \"");
-                    strcpy(err.str + strlen(err.str), __file);
-                    strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                    strcpy(err.str + strlen(err.str), __function);
-                    strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                    sprintf(err.str + strlen(err.str), "%i", __line);
-                    strcpy(err.str + strlen(err.str), ".\n\tA memory access violation was raised:\n\t  ");
-                    strcpy(err.str + strlen(err.str), exrec->ExceptionInformation[0] == 0 ? "read" : exrec->ExceptionInformation[0] == 1 ? "write" : "unknown");
-                    strcpy(err.str + strlen(err.str), " access violation of memory at ");
-                    sprintf(err.str + strlen(err.str), "0x%p", exrec->ExceptionAddress);
-                    strcpy(err.str + strlen(err.str), ",\n\t  the value of the attempted access at ");
-                    sprintf(err.str + strlen(err.str), "0x%p", exrec->ExceptionAddress);
-                    if (exrec->ExceptionInformation[1] == (uintptr_t)nullptr)
-                        strcpy(err.str + strlen(err.str), " was 0x00000000 (nullptr)");
-                    else
-                    {
-                        strcpy(err.str + strlen(err.str), " was ");
-                        sprintf(err.str + strlen(err.str), "0x%p", ((void*)exrec->ExceptionInformation[1]));
-                    }
-                    strcpy(err.str + strlen(err.str), ".\nSignal handler returned 11 (SIGSEGV).");
-                    return std::move(err);
-                #else
-                    const char* errBeg = "Segmentation Fault:\n\tException thrown:\n\t  in \"";
-                    Internal::ErrorString err;
-                    strcpy(err.str, errBeg);
-                    strcpy(err.str + strlen(err.str), __file);
-                    strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                    strcpy(err.str + strlen(err.str), __function);
-                    strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                    sprintf(err.str + strlen(err.str), "%i", __line);
-                    strcpy(err.str + strlen(err.str), ".\n\tA memory access violation was raised.\nSignal handler returned 11 (SIGSEGV).");
-                    return std::move(err);
-                #endif
+            #if __llex_msvc_win
+            PEXCEPTION_RECORD exrec = (PEXCEPTION_RECORD)data;
+            Internal::ErrorString err;
+            strcpy(err.str, "Segmentation Fault:\n\tException thrown:\n\t  in \"");
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy(err.str + strlen(err.str), ".\n\tA memory access violation was raised:\n\t  ");
+            strcpy(err.str + strlen(err.str), exrec->ExceptionInformation[0] == 0 ? "read" : exrec->ExceptionInformation[0] == 1 ? "write" : "unknown");
+            strcpy(err.str + strlen(err.str), " access violation of memory at ");
+            sprintf(err.str + strlen(err.str), "0x%p", exrec->ExceptionAddress);
+            strcpy(err.str + strlen(err.str), ",\n\t  the value of the attempted access at ");
+            sprintf(err.str + strlen(err.str), "0x%p", exrec->ExceptionAddress);
+            if (exrec->ExceptionInformation[1] == (uintptr_t)nullptr)
+                strcpy(err.str + strlen(err.str), " was 0x00000000 (nullptr)");
+            else
+            {
+                strcpy(err.str + strlen(err.str), " was ");
+                sprintf(err.str + strlen(err.str), "0x%p", ((void*)exrec->ExceptionInformation[1]));
+            }
+            strcpy(err.str + strlen(err.str), ".\nSignal handler returned 11 (SIGSEGV).");
+            return std::move(err);
             #else
-                return { "Segmentation fault exception thrown." };
+            const char* errBeg = "Segmentation Fault:\n\tException thrown:\n\t  in \"";
+            Internal::ErrorString err;
+            strcpy(err.str, errBeg);
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy(err.str + strlen(err.str), ".\n\tA memory access violation was raised.\nSignal handler returned 11 (SIGSEGV).");
+            return std::move(err);
+            #endif
+            #else
+            return { "Segmentation fault exception thrown." };
             #endif
         }().str)
         {
@@ -168,17 +175,17 @@ namespace Marble
         TerminateException(const char* const __file, const char* const __function, int __line, void* data = nullptr) : LowLevelException([&]() -> Internal::ErrorString
         {
             #if _DEBUG
-                Internal::ErrorString err;
-                strcpy(err.str, "Terminate Request:\n\tException thrown:\n\t  in \"");
-                strcpy(err.str + strlen(err.str), __file);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                strcpy(err.str + strlen(err.str), __function);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                sprintf(err.str + strlen(err.str), "%i", __line);
-                strcpy(err.str + strlen(err.str), ".\n\tA terminate request was raised.\nSignal handler returned 15 (SIGTERM).");
-                return std::move(err);
+            Internal::ErrorString err;
+            strcpy(err.str, "Terminate Request:\n\tException thrown:\n\t  in \"");
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy(err.str + strlen(err.str), ".\n\tA terminate request was raised.\nSignal handler returned 15 (SIGTERM).");
+            return std::move(err);
             #else
-                return { "Terminate request exception thrown." };
+            return { "Terminate request exception thrown." };
             #endif
         }().str)
         {
@@ -193,17 +200,17 @@ namespace Marble
         AbortException(const char* const __file, const char* const __function, int __line, void* data = nullptr) : LowLevelException([&]() -> Internal::ErrorString
         {
             #if _DEBUG
-                Internal::ErrorString err;
-                strcpy(err.str, "Abort Signal:\n\tException thrown:\n\t  in \"");
-                strcpy(err.str + strlen(err.str), __file);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
-                strcpy(err.str + strlen(err.str), __function);
-                strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
-                sprintf(err.str + strlen(err.str), "%i", __line);
-                strcpy(err.str + strlen(err.str), ".\n\tAn abort signal was raised.\nSignal handler returned 6/22 (SIGABRT).");
-                return std::move(err);
+            Internal::ErrorString err;
+            strcpy(err.str, "Abort Signal:\n\tException thrown:\n\t  in \"");
+            strcpy(err.str + strlen(err.str), __file);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in function/ctor/dtor \"");
+            strcpy(err.str + strlen(err.str), __function);
+            strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
+            sprintf(err.str + strlen(err.str), "%i", __line);
+            strcpy(err.str + strlen(err.str), ".\n\tAn abort signal was raised.\nSignal handler returned 6/22 (SIGABRT).");
+            return std::move(err);
             #else
-                return { "Abort exception thrown." };
+            return { "Abort exception thrown." };
             #endif
         }().str)
         {
@@ -339,7 +346,7 @@ namespace Marble
 
     namespace Internal
     {
-        void __cdecl signalHandler(int sig)
+        extern "C" void __cdecl signalHandler(int sig)
         {
             jmp_buf* buf = ExceptionHandler::data.getBufferForCurrentThread();
             if (buf != nullptr)
@@ -358,7 +365,7 @@ namespace Marble
             }
         }
         #if _WIN32
-        void __cdecl arithmeticSignalHandler(int sig, int err)
+        extern "C" void __cdecl arithmeticSignalHandler(int sig, int err)
         {
             jmp_buf* buf = ExceptionHandler::data.getBufferForCurrentThread();
             if (buf != nullptr)
@@ -398,7 +405,7 @@ namespace Marble
             return FALSE;
         }
         #else
-        void __cdecl interruptHandler(int sig)
+        extern "C" void __cdecl interruptHandler(int sig)
         {
             switch (sig)
             {
@@ -414,17 +421,24 @@ namespace Marble
     }
 }
 
-#if defined(_MSC_VER) && defined(__FUNCSIG__)
-#define __llex_function __FUNCSIG__
-#elif (defined (GNUC) || defined(__clang__)) && defined(__PRETTY_FUNCTION__)
+#if (defined (GNUC) || defined(__clang__))
 #define __llex_function __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#define __llex_function __FUNCSIG__
 #else
 #define __llex_function __func__
 #endif
 
 #if _DEBUG
 #define __llex_fileData __FILE__, __llex_function, __LINE__
+#if __llex_msvc_win
+#define __llex_get_exrec EXCEPTION_RECORD __exrec = *((PEXCEPTION_POINTERS)_pxcptinfoptrs)->ExceptionRecord; EXCEPTION_RECORD* exrec = &__exrec
 #else
+#define __llex_get_exrec void* exrec = nullptr
+#endif
+#else
+#define __llex_fileData "", "", 0
+#define __llex_get_exrec void* exrec = nullptr
 #endif
 
 // Your punishment for trying to catch a nullptr exception is typing all this out everytime.
@@ -446,8 +460,8 @@ case SIGFPE: \
 case SIGSEGV: \
     { \
         lowLevelExceptionsSectionEnd(); \
-        EXCEPTION_RECORD exrec = *((PEXCEPTION_POINTERS)_pxcptinfoptrs)->ExceptionRecord; \
-        throw Marble::SegmentationFaultException(__llex_fileData, &exrec); \
+        __llex_get_exrec; \
+        throw Marble::SegmentationFaultException(__llex_fileData, exrec); \
     } \
     break; \
 case SIGTERM: \
