@@ -13,7 +13,7 @@
 #include <utility>
 
 #if _WIN32
-typedef struct IUnknown IUnknown; // Fuck you objbase.h.
+typedef struct IUnknown IUnknown; // *bad word* you objbase.h.
 #include <cfloat>
 #include <windows.h>
 #undef min
