@@ -1,0 +1,11 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(201,17): warning C4244: 'return': conversion from 'long' to 'char', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(206,18): warning C4244: 'return': conversion from 'unsigned long' to 'unsigned char', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(211,17): warning C4244: 'return': conversion from 'long' to 'short', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(216,18): warning C4244: 'return': conversion from 'unsigned long' to 'unsigned short', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(251,17): warning C4244: 'return': conversion from 'long' to 'char', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(256,18): warning C4244: 'return': conversion from 'unsigned long' to 'unsigned char', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(261,17): warning C4244: 'return': conversion from 'long' to 'short', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\String.h(266,18): warning C4244: 'return': conversion from 'unsigned long' to 'unsigned short', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\Starter Problems 1\A Mindbending Scenario\main.cpp(8,5): warning C4244: 'initializing': conversion from 'std::streamoff' to 'size_t', possible loss of data
+  A Mindbending Scenario.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\Starter Problems 1\/bin/x86-[A Mindbending Scenario]-Debug-Win32/A Mindbending Scenario.exe

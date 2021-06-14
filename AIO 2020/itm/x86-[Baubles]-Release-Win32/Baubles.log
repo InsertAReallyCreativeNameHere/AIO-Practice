@@ -1,0 +1,8 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v150\Platforms\Win32\PlatformToolsets\v141_xp\Toolset.targets(39,5): warning MSB8051: Support for targeting Windows XP is deprecated and will not be present in future releases of Visual Studio. Please see https://go.microsoft.com/fwlink/?linkid=2023588 for more information.
+  main.cpp
+  Generating code
+  597 of 646 functions (92.4%) were compiled, the rest were copied from previous compilation.
+    449 functions were new in current compilation
+    9 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  Baubles.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\/bin/x86-[Baubles]-Release-Win32/Baubles.exe
