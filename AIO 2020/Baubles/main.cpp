@@ -1,101 +1,20 @@
 #include <stdinc.h>
 #include <defines.h>
 
-void test()
+using namespace Marble;
+
+Task<> test()
 {
-    std::atomic<bool>* completed = new std::atomic<bool>[std::thread::hardware_concurrency()] { false };
-    auto begin = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < std::thread::hardware_concurrency(); i++)
-    {
-        std::thread([=]()
-        {
-            while (!Marble::ExceptionHandler::ctrlCInterruptThrown())//std::chrono::high_resolution_clock::now() - begin < std::chrono::milliseconds(8000))
-            {
-                try
-                {
-                    lowLevelExceptionsSectionBegin();
-
-                    int i = 5;
-                    int j = 0;
-                    int k = i / j;
-
-                    lowLevelExceptionsSectionEnd();
-                }
-                catch (Marble::LowLevelException& ex)
-                {
-                    //std::cout << ex.what() << std::endl;
-                }
-            }
-            completed[i] = true;
-        }).detach();
-    }
-    while (true)
-    {
-        bool allCompleted = true;
-        for (size_t i = 0; i < std::thread::hardware_concurrency(); i++)
-        {
-            if (completed[i] == false)
-                allCompleted = false;
-        }
-        if (allCompleted)
-            break;
-    }
-    delete[] completed;
+    std::cout << "bruh\n";
+    co_await WaitUntilSecondsPassed(2.0f);
+    std::cout << "bruh\n";
 }
-void test2()
+
+void run()
 {
-    std::atomic<bool>* completed = new std::atomic<bool>[std::thread::hardware_concurrency()] { false };
-    auto begin = std::chrono::high_resolution_clock::now();
-    /*for (size_t i = 0; i < std::thread::hardware_concurrency(); i++)
-    {
-        std::thread([=]()
-        {*/
-            while (!Marble::ExceptionHandler::ctrlCInterruptThrown())//std::chrono::high_resolution_clock::now() - begin < std::chrono::milliseconds(8000))
-            {
-                try
-                {
-                    lowLevelExceptionsSectionBegin();
-
-                    volatile int i = 5;
-                    volatile int j = 0;
-                    volatile int k = i / j;
-
-                    lowLevelExceptionsSectionEnd();
-                }
-                catch (Marble::LowLevelException& ex)
-                {
-                    std::cout << ex.what() << std::endl;
-                }
-                try
-                {
-                    lowLevelExceptionsSectionBegin();
-
-                    *(int*)0 = 0;
-
-                    lowLevelExceptionsSectionEnd();
-                }
-                catch (Marble::LowLevelException& ex)
-                {
-                    std::cout << ex.what() << std::endl;
-                }
-            }
-            /*completed[i] = true;
-        }).detach();
-    }
-    while (true)
-    {
-        bool allCompleted = true;
-        for (size_t i = 0; i < std::thread::hardware_concurrency(); i++)
-        {
-            if (completed[i] == false)
-                allCompleted = false;
-        }
-        if (allCompleted)
-            break;
-    }*/
-    delete[] completed;
+    test();
 }
 int main()
 {
-    test2();
+    run();
 }
