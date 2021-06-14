@@ -2,9 +2,9 @@
 
 #include <chrono>
 #include <coroutine>
+#include <map>
 #include <moodycamel/concurrentqueue.h>
 #include <skarupke/function.h>
-#include <stop_token>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -13,6 +13,219 @@
 
 namespace Marble
 {
+    class Parallel;
+    template <typename T> class Task;
+    class ThreadPool final
+    {
+        struct Thread
+        {
+            std::thread _thread;
+            std::atomic<bool> shouldExit;
+            std::atomic<bool> exited;
+
+            Thread() : shouldExit(false), exited(false),
+            _thread
+            (
+                [this]()
+                {
+                    skarupke::function<void(Thread*)> func;
+                    while (this->shouldExit.load(std::memory_order_relaxed) == false)
+                    {
+                        while (ThreadPool::threadJobs.try_dequeue(func))
+                            func(this);
+                    }
+                    this->exited.store(true, std::memory_order_relaxed);
+                }
+            )
+            {
+                this->_thread.detach();
+            }
+        };
+
+        inline static moodycamel::ConcurrentQueue<Thread*> threads;
+        inline static std::atomic<size_t> nthreads = 0;
+        inline static moodycamel::ConcurrentQueue<skarupke::function<void(Thread*)>> threadJobs;
+
+        inline static std::atomic<size_t> processConsumedThreads = 1;
+    public:
+
+        ThreadPool() = delete;
+
+        inline static void pushThreads(size_t threadCount)
+        {
+            for (size_t i = 0; i < threadCount; i++)
+                ThreadPool::threads.enqueue(new Thread);
+            ThreadPool::nthreads += threadCount;
+        }
+        inline static void killThreads(size_t threadCount)
+        {
+            skarupke::function<void(Thread*)> func;
+            Thread* t;
+            for (size_t i = 0; i < threadCount; i++)
+            {
+                if (ThreadPool::threads.try_dequeue(t))
+                {
+                    t->shouldExit.store(true, std::memory_order_relaxed);
+                    while (!t->exited.load(std::memory_order_relaxed));
+                    delete t;
+                }
+                else
+                {
+                    ThreadPool::nthreads -= i - 1;
+                    return;
+                }
+            }
+            ThreadPool::nthreads -= threadCount;
+        }
+        inline static void killAllThreads()
+        {
+            skarupke::function<void(Thread*)> func;
+            Thread* t;
+            while (ThreadPool::threads.try_dequeue(t))
+            {
+                t->shouldExit.store(true, std::memory_order_relaxed);
+                while (!t->exited.load(std::memory_order_relaxed));
+                delete t;
+            }
+            while (ThreadPool::threadJobs.try_dequeue(func));
+        }
+        inline static size_t threadCount()
+        {
+            return ThreadPool::nthreads.load();
+        }
+
+        inline static void setProcessAdditionalConsumedHardwareThreads(size_t threads)
+        {
+            ThreadPool::processConsumedThreads = threads + 1;
+        }
+        inline static size_t availableHardwareThreads()
+        {
+            return std::thread::hardware_concurrency() - ThreadPool::processConsumedThreads.load();
+        }
+
+        template <typename> friend class Marble::Task;
+        friend class Marble::Parallel;
+    };
+
+    struct ParallelLoopState final
+    {
+        ParallelLoopState(std::atomic<bool>& _break) : _break(_break)
+        {
+        }
+
+        inline void breakAll() const noexcept
+        {
+            this->_break.store(true, std::memory_order_relaxed);
+        }
+        inline bool breakRequested()
+        {
+            return this->_break.load(std::memory_order_relaxed);
+        }
+    private:
+        std::atomic<bool>& _break;
+    };
+    class Parallel final
+    {
+    public:
+        Parallel() = delete;
+
+        template <typename... Args>
+        inline static void invoke(const std::vector<skarupke::function<void(Args...)>> functions, Args... args)
+        {
+            skarupke::function<void(ThreadPool::Thread*)>* jobs = new skarupke::function<void(ThreadPool::Thread*)>[functions.size()];
+            std::atomic<bool>* jobsCompleted = new std::atomic<bool>[functions.size()] { false };
+
+            for (size_t i = 0; i < functions.size(); i++)
+            {
+                jobs[i] = [&, i](ThreadPool::Thread*)
+                {
+                    functions[i](args...);
+                    jobsCompleted[i].store(true, std::memory_order_relaxed);
+                };
+            }
+
+            ThreadPool::threadJobs.enqueue_bulk(jobs, functions.size());
+
+            for (size_t i = 0; i < functions.size(); i++)
+                while (jobsCompleted[i].load(std::memory_order_relaxed) == false);
+
+            delete[] jobs;
+            delete[] jobsCompleted;
+        }
+        inline static void forRange(size_t fromInclusive, size_t toExclusive, const skarupke::function<void(size_t)>& predicate)
+        {
+            skarupke::function<void(ThreadPool::Thread*)>* jobs = new skarupke::function<void(ThreadPool::Thread*)>[toExclusive - fromInclusive];
+            std::atomic<bool>* jobsCompleted = new std::atomic<bool>[toExclusive - fromInclusive] { false };
+
+            for (size_t i = 0; i < toExclusive - fromInclusive; i++)
+            {
+                jobs[i] = [&, i](ThreadPool::Thread*)
+                {
+                    predicate(i + fromInclusive);
+                    jobsCompleted[i].store(true, std::memory_order_relaxed);
+                };
+            }
+
+            ThreadPool::threadJobs.enqueue_bulk(jobs, toExclusive - fromInclusive);
+
+            for (size_t i = 0; i < toExclusive - fromInclusive; i++)
+                while (jobsCompleted[i].load(std::memory_order_relaxed) == false);
+
+            delete[] jobs;
+            delete[] jobsCompleted;
+        }
+        inline static void forRangeBreakable(size_t fromInclusive, size_t toExclusive, const skarupke::function<void(size_t, const ParallelLoopState&)>& predicate)
+        {
+            skarupke::function<void(ThreadPool::Thread*)>* jobs = new skarupke::function<void(ThreadPool::Thread*)>[toExclusive - fromInclusive];
+            std::atomic<bool>* jobsCompleted = new std::atomic<bool>[toExclusive - fromInclusive] { false };
+            std::atomic<bool> _break;
+            _break.store(false, std::memory_order_relaxed);
+            ParallelLoopState state(_break);
+
+            for (size_t i = 0; i < toExclusive - fromInclusive; i++)
+            {
+                jobs[i] = [&, i](ThreadPool::Thread*)
+                {
+                    if (!_break.load(std::memory_order_relaxed))
+                        predicate(i + fromInclusive, state);
+                    jobsCompleted[i].store(true, std::memory_order_relaxed);
+                };
+            }
+
+            ThreadPool::threadJobs.enqueue_bulk(jobs, toExclusive - fromInclusive);
+
+            for (size_t i = 0; i < toExclusive - fromInclusive; i++)
+                while (jobsCompleted[i].load(std::memory_order_relaxed) == false);
+
+            delete[] jobs;
+            delete[] jobsCompleted;
+        }
+        template <typename T, typename Container>
+        inline static void forEach(Container& container, const skarupke::function<void(T&)>& predicate)
+        {
+            skarupke::function<void(ThreadPool::Thread*)>* jobs = new skarupke::function<void(ThreadPool::Thread*)>[container.size()];
+            std::atomic<bool>* jobsCompleted = new std::atomic<bool>[container.size()] { false };
+
+            size_t i = 0;
+            for (auto it = container.begin(); it != container.end(); ++it, i++)
+            {
+                jobs[i] = [&, it, i](ThreadPool::Thread*)
+                {
+                    predicate(*it);
+                    jobsCompleted[i].store(true, std::memory_order_relaxed);
+                };
+            }
+
+            ThreadPool::threadJobs.enqueue_bulk(jobs, container.size());
+
+            for (size_t i = 0; i < container.size(); i++)
+                while (jobsCompleted[i].load(std::memory_order_relaxed) == false);
+
+            delete[] jobs;
+            delete[] jobsCompleted;
+        }
+    };
+
     template <typename T>
     class Generator
     {
@@ -69,200 +282,6 @@ namespace Marble
         {
             this->coro.resume();
             return this->coro.done();
-        }
-    };
-
-    template <typename T = void>
-    class Task
-    {
-        struct Promise final
-        {
-            T returnValue;
-
-            inline Task get_return_object() { return Task(std::coroutine_handle<Promise>::from_promise(*this)); }
-
-            inline std::suspend_always initial_suspend() { return { }; }
-            inline std::suspend_always final_suspend() noexcept { return { }; }
-            inline std::suspend_always return_value(T t)
-            {
-                this->returnValue = t;
-                return { };
-            }
-
-            inline void unhandled_exception() { }
-            inline void return_void() { }
-        };
-        std::coroutine_handle<Promise> coro;
-    public:
-        using promise_type = Promise;
-
-        Task() : coro(nullptr)
-        {
-        }
-        explicit Task(std::coroutine_handle<Promise> handle) : coro(handle)
-        {
-            this->coro.resume();
-        }
-        Task(Task&& other) : coro(std::coroutine_handle<Promise>::from_address(other.coro.address()))
-        {
-            other.coro = nullptr;
-        }
-        ~Task()
-        {
-            if (this->coro)
-                this->coro.destroy();
-        }
-
-        inline Task& operator=(Task&& other)
-        {
-            this->coro = other.coro;
-            other.coro = nullptr;
-
-            return *this;
-        }
-
-        inline T returnValue()
-        {
-            return this->coro.promise().returnValue;
-        }
-    };
-    template <>
-    class Task<void>
-    {
-        struct Promise final
-        {
-            inline Task get_return_object() { return Task(std::coroutine_handle<Promise>::from_promise(*this)); }
-
-            inline std::suspend_always initial_suspend() { return { }; }
-            inline std::suspend_always final_suspend() noexcept { return { }; }
-
-            inline void unhandled_exception() { }
-            inline void return_void() { }
-        };
-        std::coroutine_handle<Promise> coro;
-    public:
-        using promise_type = Promise;
-
-        Task() : coro(nullptr)
-        {
-        }
-        explicit Task(std::coroutine_handle<Promise> handle) : coro(handle)
-        {
-            this->coro.resume();
-        }
-        Task(Task&& other) : coro(std::coroutine_handle<Promise>::from_address(other.coro.address()))
-        {
-            other.coro = nullptr;
-        }
-        ~Task()
-        {
-            if (this->coro)
-                this->coro.destroy();
-        }
-
-        inline Task& operator=(Task&& other)
-        {
-            this->coro = other.coro;
-            other.coro = nullptr;
-
-            return *this;
-        }
-    };
-    struct WaitUntilSecondsPassed
-    {
-        WaitUntilSecondsPassed(float seconds) : seconds(seconds), since(std::chrono::high_resolution_clock::now())
-        {
-        }
-
-        inline bool await_ready() const noexcept { return false; }
-        inline void await_suspend(std::coroutine_handle<> handle)
-        {
-            while (std::chrono::high_resolution_clock::now() < this->since + std::chrono::microseconds((uint64_t)(this->seconds * 1000000 + 0.5f)))
-                std::this_thread::yield();
-            handle.resume();
-        }
-        inline void await_resume() { }
-    private:
-        float seconds;
-        std::chrono::high_resolution_clock::time_point since;
-    };
-
-    class Parallel final
-    {
-        inline static moodycamel::ConcurrentQueue<skarupke::function<void()>> threadJobs;
-        inline static size_t threadCount;
-        inline static std::thread* threads;
-        inline static std::atomic<bool>* threadsShouldExit;
-        inline static std::atomic<bool>* threadsExited;
-    public:
-        Parallel() = delete;
-
-        inline static void init(size_t threadCount = std::thread::hardware_concurrency())
-        {
-            Parallel::threadCount = threadCount;
-            Parallel::threads = new std::thread[threadCount];
-            Parallel::threadsShouldExit = new std::atomic<bool>[threadCount];
-            Parallel::threadsExited = new std::atomic<bool>[threadCount];
-
-            for (size_t i = 0; i < Parallel::threadCount; i++)
-            {
-                Parallel::threadsShouldExit[i] = false;
-                Parallel::threadsExited[i] = false;
-                Parallel::threads[i] = std::thread
-                (
-                    [](size_t index)
-                    {
-                        skarupke::function<void()> func;
-                        while (Parallel::threadsShouldExit[index].load(std::memory_order_relaxed) == false)
-                        {
-                            while (Parallel::threadJobs.try_dequeue(func))
-                                func();
-                        }
-                        Parallel::threadsExited[index].store(true, std::memory_order_relaxed);
-                    },
-                    i
-                );
-                Parallel::threads[i].detach();
-            }
-        }
-        inline static void deinit()
-        {
-            for (size_t i = 0; i < Parallel::threadCount; i++)
-                Parallel::threadsShouldExit[i].store(true, std::memory_order_relaxed);
-            for (size_t i = 0; i < Parallel::threadCount; i++)
-                while (Parallel::threadsExited[i].load(std::memory_order_relaxed) == false);
-
-            skarupke::function<void()> func;
-            while (Parallel::threadJobs.try_dequeue(func));
-
-            delete[] Parallel::threads;
-            delete[] Parallel::threadsShouldExit;
-            delete[] Parallel::threadsExited;
-        }
-
-        template <typename... Args>
-        inline static void invoke(const std::vector<skarupke::function<void(Args...)>> functions, Args... args)
-        {
-            skarupke::function<void()>* jobs = new skarupke::function<void()>[functions.size()];
-            std::atomic<bool>* jobsCompleted = new std::atomic<bool>[functions.size()] { false };
-
-            for (size_t i = 0; i < functions.size(); i++)
-            {
-                jobs[i] = [&, i]()
-                {
-                    functions[i](args...);
-                    jobsCompleted[i].store(true, std::memory_order_relaxed);
-                };
-            }
-
-            threadJobs.enqueue_bulk(jobs, functions.size());
-
-            for (size_t i = 0; i < functions.size(); i++)
-                while (jobsCompleted[i].load(std::memory_order_relaxed) == false)
-                    std::this_thread::yield();
-
-            delete[] jobs;
-            delete[] jobsCompleted;
         }
     };
 }
