@@ -1,0 +1,4 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(40,18): warning C4455: 'operator ""f': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\ProgComp 2021\main.cpp(13,5): warning C4244: 'initializing': conversion from 'std::streamoff' to 'size_t', possible loss of data
+  ProgComp 2021.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\ProgComp 2021\bin\x86-[Day of the Week]-Debug-Win32\Day of the Week.exe

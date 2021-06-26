@@ -626,7 +626,7 @@ namespace Marble
 		{
 			return this->buffer[Internal::cstrLen(this->buffer.data()) - 1];
 		}
-		T& operator[](size_t index) const
+		T& operator[](const size_t& index) const
 		{
 			return this->buffer[index];
 		}
@@ -687,7 +687,7 @@ namespace Marble
 			return false;
 		}
 
-		/*
+		
 		template <typename IntegralType>
 		IntegralType toIntegralType()
 		{
@@ -957,7 +957,7 @@ namespace Marble
 			}
 			return ret;
 		}
-		template <typename FloatingPointType>
+		/*template <typename FloatingPointType>
 		FloatingPointType toFloatingPointType()
 		{
 			if constexpr (std::is_same<FloatingPointType, float>::value)
@@ -989,8 +989,7 @@ namespace Marble
 				else static_assert(false, "toFloatingPointType requires a char/wchar_t BasicString.");
 			}
 			else static_assert(false, "toFloatingPointType requires a floating-point type template parameter.");
-		}
-		*/
+		}*/
 
 		template <typename FloatingPointType>
 		FloatingPointType toFloatingPointType()
@@ -1002,7 +1001,7 @@ namespace Marble
 				return std::numeric_limits<FloatingPointType>::max();
 			else return ret;
 		}
-		template <typename IntegralType>
+		/*template <typename IntegralType>
 		IntegralType toIntegralType()
 		{
 			IntegralType ret;
@@ -1011,7 +1010,7 @@ namespace Marble
 			if (endPtr != this->buffer.data() + Internal::cstrLen(this->buffer.data()))
 				return std::numeric_limits<IntegralType>::max();
 			else return ret;
-		}
+		}*/
 
 		bool contains(const BasicString<T>& str)
 		{

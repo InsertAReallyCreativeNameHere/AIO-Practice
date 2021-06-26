@@ -1,2 +1,3 @@
 ﻿  main.cpp
-  Baubles.vcxproj -> D:\Github\AIO-Practice\AIO 2020\bin\x86-[Baubles]-Debug-Win32\Baubles.exe
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\Baubles\main.cpp(8,5): warning C4244: 'initializing': conversion from 'std::streamoff' to 'size_t', possible loss of data
+  Baubles.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\bin\x86-[Baubles]-Debug-Win32\Baubles.exe

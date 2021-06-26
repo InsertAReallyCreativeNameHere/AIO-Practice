@@ -1,0 +1,22 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(64,28): warning C4455: 'operator ""f': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(68,28): warning C4455: 'operator ""f': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(72,29): warning C4455: 'operator ""d': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(76,29): warning C4455: 'operator ""d': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(80,34): warning C4455: 'operator ""ld': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(84,34): warning C4455: 'operator ""ld': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(91,29): warning C4455: 'operator ""b': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(95,30): warning C4455: 'operator ""sb': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(99,30): warning C4455: 'operator ""s': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(103,31): warning C4455: 'operator ""us': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(107,28): warning C4455: 'operator ""i': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(111,29): warning C4455: 'operator ""ui': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(115,29): warning C4455: 'operator ""l': literal suffix identifiers that do not start with an underscore are reserved
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(119,30): warning C4455: 'operator ""ul': literal suffix identifiers that do not start with an underscore are reserved
+LINK : warning LNK4075: ignoring '/INCREMENTAL' due to '/LTCG' specification
+  Generating code
+  265 of 795 functions (33.3%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    122 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  Baubles.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\bin\x64-[Baubles]-Release-x64\Baubles.exe

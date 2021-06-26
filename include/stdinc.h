@@ -4,6 +4,7 @@
 #include <Marble/Async.h>
 #include <Marble/Exception.h>
 #include <Marble/ManagedArray.h>
+#include <Marble/Random.h>
 #include <Marble/String.h>
 
 // Other

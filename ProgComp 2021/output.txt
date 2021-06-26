@@ -1,0 +1,14 @@
+1945-08-15 is a Wednesday
+2023-12-31 is a Sunday
+2001-01-01 is a Saturday
+1582-10-15 is a Friday
+2024-02-28 is a Wednesday
+2021-06-00 is a not valid date (stop trying to break my code!)
+1770-05-29 is a Tuesday
+2021-11-31 is a not valid date (stop trying to break my code!)
+1861-07-14 is a Sunday
+1855-12-03 is a Monday
+2100-02-29 is a Monday
+1616-04-23 is a Saturday
+2050-03-31 is a Thursday
+2021-13-13 is a not valid date (stop trying to break my code!)

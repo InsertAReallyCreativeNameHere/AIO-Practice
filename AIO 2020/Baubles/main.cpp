@@ -1,42 +1,35 @@
 #include <stdinc.h>
 #include <defines.h>
-#undef Yield
 
 using namespace Marble;
-using namespace std::literals::chrono_literals;
 
-void run()
+Task<> doThing()
 {
-    ThreadPool::pushThreads(ThreadPool::availableHardwareThreads());
-
-    Parallel::forRange(420, 1337, [](size_t i)
+    for (int i = 0; i < 100; i++)
     {
-        std::ostringstream bruh;
-        bruh << i << "\n";
-        std::cout << bruh.str();
-    });
-    std::cout << "\n";
-    Parallel::forRangeBreakable(420, 1337, [](size_t i, auto state)
-    {
-        std::ostringstream bruh;
-        bruh << i << "\n";
-        std::cout << bruh.str();
-        if (state.breakRequested())
-            std::cout << "bruhbruh\n";
-        if (i == 421)
-            state.breakAll();
-    });
-    std::vector<char> cs(1200, 'a');
-    Parallel::forEach<char>(cs, [](auto c) -> void
-    {
-        std::ostringstream bruh;
-        bruh << c << "\n";
-        std::cout << bruh.str();
-    });
-
-    ThreadPool::killAllThreads();
+        co_await Task<>::yield();
+    }
+    std::cout << "hit dothing\n";
+    co_return;
 }
-int main()
+Task<> test()
 {
-    run();
+    co_await Task<>::yield();
+    Task<> test = doThing();
+    std::cout << "hit test\n";
+    co_await test;
+    co_return;
+}
+void notcoro()
+{
+    for (int i = 0; i < 400; i++)
+        test().wait();
+    std::cout << "hit main\n";
+}
+__noinline int main()
+{
+    std::cout << "indicator entry\n";
+    notcoro();
+    std::cout << "indicator exit\n";
+    std::this_thread::sleep_for(10000ms);
 }
