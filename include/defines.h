@@ -34,13 +34,13 @@ Marble::BasicString<char> input; \
     inputStream.read(input.data(), len); \
     input.replace("\r\n", "\n"); \
     input.replace("\r", "\n"); /* In case some *nice person* tries using CR files. */ \
-    std::cout << fileName " text buffer contains: \n[\n" << string(input).insert(0, "\t").replace("\n", "\n\t") << "\n]." << std::endl; \
+    std::cout << fileName " text buffer contains: \n[\n" << string(input).insert(0, "\t").replace("\n", "\n\t") << "\n].\n"; \
 } ""
 
 #define FileOutput(fileName, str) \
 { \
     std::ofstream outputStream(fileName, std::ios::beg); \
-    std::cout << fileName " should contain \n[\n" << string(str).insert(0, "\t").replace("\n", "\n\t") << "\n]." << std::endl; \
+    std::cout << fileName " should contain \n[\n" << string(str).insert(0, "\t").replace("\n", "\n\t") << "\n].\n"; \
     outputStream.write(str.data(), str.length()); \
 } ""
 

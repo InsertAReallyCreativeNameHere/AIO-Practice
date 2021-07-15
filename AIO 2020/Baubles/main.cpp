@@ -3,18 +3,20 @@
 
 using namespace Marble;
 
+#undef Yield
+
 Task<> doThing()
 {
     for (int i = 0; i < 100; i++)
     {
-        co_await Task<>::yield();
+        co_await Task<>::Yield();
     }
     std::cout << "hit dothing\n";
     co_return;
 }
 Task<> test()
 {
-    co_await Task<>::yield();
+    co_await Task<>::Yield();
     Task<> test = doThing();
     std::cout << "hit test\n";
     co_await test;
@@ -26,10 +28,11 @@ void notcoro()
         test().wait();
     std::cout << "hit main\n";
 }
+
+using Bruh = unsigned long long;
+
 __noinline int main()
 {
-    std::cout << "indicator entry\n";
-    notcoro();
-    std::cout << "indicator exit\n";
-    std::this_thread::sleep_for(10000ms);
+    FileInput("tennisin.txt");
+    std::cout << input << '\n';
 }

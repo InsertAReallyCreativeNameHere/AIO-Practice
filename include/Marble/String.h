@@ -355,16 +355,15 @@ namespace Marble
 	template <typename T>
 	class BasicString final
 	{
-		ManagedArray<T> buffer;
+		std::basic_string<T> buffer;
 	public:
-		BasicString() : buffer(1, 0)
+		BasicString()
 		{
 		}
 		BasicString(size_t length) : buffer(length + 1)
 		{
-			this->buffer[length] = 0;
 		}
-		BasicString(std::vector<BasicString<T>> strings, const BasicString<T>& delimiter) : buffer(1, 0)
+		BasicString(std::vector<BasicString<T>> strings, const BasicString<T>& delimiter)
 		{
 			if (!strings.empty())
 			{
@@ -378,29 +377,21 @@ namespace Marble
 				this->buffer = std::move(builder.construct().buffer);
 			}
 		}
-		BasicString(const T* cstring) : buffer(Internal::cstrLen(cstring) + 1)
+		BasicString(const T* cstring) : buffer(cstring)
 		{
-			T* data = this->buffer.data();
-			for (size_t i = 0; i < this->buffer.length(); i++)
-				data[i] = cstring[i];
-			this->buffer[this->buffer.length() - 1] = 0;
 		}
 		BasicString(const BasicString<T>& other) : buffer(other.buffer)
-		{	
+		{
 		}
 		BasicString(BasicString<T>&& other) noexcept
 		{
 			this->buffer = other.buffer;
-			other.buffer = ManagedArray<T>();
+			other.buffer = "";
 		}
 
 		BasicString& operator=(const T* cstring)
 		{
-			this->buffer = ManagedArray<T>(Internal::cstrLen(cstring) + 1);
-			T* data = buffer.data();
-			for (size_t i = 0; i < buffer.length(); i++)
-				data[i] = cstring[i];
-			this->buffer[this->buffer.length() - 1] = 0;
+			this->buffer = cstring;
 			return *this;
 		}
 		BasicString& operator=(const BasicString<T>& other)
@@ -410,11 +401,8 @@ namespace Marble
 		}
 		BasicString& operator=(BasicString<T>&& other) noexcept
 		{
-			if (this != &other)
-			{
-				this->buffer = other.buffer;
-				other.buffer = ManagedArray<T>();
-			}
+			this->buffer = other.buffer;
+			other.buffer = "";
 			return *this;
 		}
 
@@ -449,182 +437,60 @@ namespace Marble
 
 		void shrinkToFit()
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer, Internal::cstrLen(this->buffer));
-			this->buffer = std::move(builder.construct().buffer);
+			this->buffer.shrink_to_fit();
 		}
 		void resize(size_t len)
 		{
-			this->buffer.reset(len + 1);
-			this->buffer[this->buffer.length() - 1] = 0;
+			this->buffer.resize(len);
 		}
 		void clear()
 		{
-			this->buffer.reset(1);
-			this->buffer[0] = 0;
+			this->buffer.clear();
 		}
 		bool empty()
 		{
-			size_t i = 0;
-			while (this->buffer[i] != 0)
-				i++;
-			return !static_cast<bool>(i);
+			return this->empty();
 		}
 
-		struct iterator
+		std::basic_string<T>::iterator begin()
 		{
-			using iterator_category = std::bidirectional_iterator_tag;
-			using difference_type = std::ptrdiff_t;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-
-			iterator(pointer ptr) : ptr(ptr)
-			{
-			}
-
-			reference operator*()
-			{
-				return *ptr;
-			}
-			pointer operator->()
-			{
-				return ptr;
-			}
-
-			iterator& operator++()
-			{
-				++ptr;
-				return *this;
-			}
-			iterator operator++(int)
-			{
-				iterator temp = *this;
-				++ptr;
-				return temp;
-			}
-			iterator& operator--()
-			{
-				--ptr;
-				return *this;
-			}
-			iterator operator--(int)
-			{
-				iterator temp = *this;
-				--ptr;
-				return temp;
-			}
-
-			operator pointer ()
-			{
-				return ptr;
-			}
-
-			friend bool operator==(const iterator& lhs, const iterator& rhs)
-			{
-				return lhs.ptr == rhs.ptr;
-			}
-			friend bool operator!=(const iterator& lhs, const iterator& rhs)
-			{
-				return lhs.ptr != rhs.ptr;
-			}
-
-			friend difference_type operator-(const iterator& lhs, const iterator& rhs)
-			{
-				return lhs.ptr - rhs.ptr;
-			}
-		private:
-			pointer ptr;
-		};
-		struct reverse_iterator
-		{
-			using iterator_category = std::bidirectional_iterator_tag;
-			using difference_type = std::ptrdiff_t;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-
-			reverse_iterator(pointer ptr) : ptr(ptr)
-			{
-			}
-
-			reference operator*()
-			{
-				return *ptr;
-			}
-			pointer operator->()
-			{
-				return ptr;
-			}
-
-			reverse_iterator& operator++()
-			{
-				--ptr;
-				return *this;
-			}
-			reverse_iterator operator++(int)
-			{
-				iterator temp = *this;
-				--ptr;
-				return temp;
-			}
-			reverse_iterator& operator--()
-			{
-				++ptr;
-				return *this;
-			}
-			reverse_iterator operator--(int)
-			{
-				iterator temp = *this;
-				++ptr;
-				return temp;
-			}
-
-			operator pointer ()
-			{
-				return ptr;
-			}
-
-			friend bool operator==(const reverse_iterator& lhs, const reverse_iterator& rhs)
-			{
-				return lhs.ptr == rhs.ptr;
-			}
-			friend bool operator!=(const reverse_iterator& lhs, const reverse_iterator& rhs)
-			{
-				return lhs.ptr != rhs.ptr;
-			}
-
-			friend difference_type operator-(const reverse_iterator& lhs, const reverse_iterator& rhs)
-			{
-				return lhs.ptr + rhs.ptr;
-			}
-		private:
-			pointer ptr;
-		};
-
-		iterator begin()
-		{
-			return this->buffer.data();
+			return this->buffer.begin();
 		}
-		iterator end()
+		std::basic_string<T>::iterator end()
 		{
-			return this->buffer.data() + Internal::cstrLen(this->buffer.data());
+			return this->buffer.end();
 		}
-		reverse_iterator rbegin()
+		std::basic_string<T>::reverse_iterator rbegin()
 		{
-			return this->buffer.data() + Internal::cstrLen(this->buffer.data()) - 1;
+			return this->buffer.rbegin();
 		}
-		reverse_iterator rend()
+		std::basic_string<T>::reverse_iterator rend()
 		{
-			return this->buffer.data() - 1;
+			return this->buffer.rend();
+		}
+		std::basic_string<T>::const_iterator cbegin()
+		{
+			return this->buffer.cbegin();
+		}
+		std::basic_string<T>::const_iterator cend()
+		{
+			return this->buffer.cend();
+		}
+		std::basic_string<T>::const_reverse_iterator crbegin()
+		{
+			return this->buffer.crbegin();
+		}
+		std::basic_string<T>::const_reverse_iterator crend()
+		{
+			return this->buffer.crend();
 		}
 		T& front()
 		{
-			return this->buffer[0];
+			return this->buffer.front();
 		}
 		T& back()
 		{
-			return this->buffer[Internal::cstrLen(this->buffer.data()) - 1];
+			return this->buffer.back();
 		}
 		T& operator[](const size_t& index) const
 		{
@@ -632,20 +498,17 @@ namespace Marble
 		}
 		size_t length()
 		{
-			return Internal::cstrLen(this->buffer.data());
+			return this->buffer.size();
 		}
 		size_t capacity()
 		{
-			return this->buffer.length();
+			return this->buffer.capacity();
 		}
 
 		BasicString<T>& operator+=(const BasicString<T>& str)
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data());
-			builder.append(str.buffer.data());
-			this->buffer = std::move(builder.construct().buffer);
-
+			this->buffer.reserve(this->buffer.size() + str.buffer.size());
+			this->buffer.append(str.buffer);
 			return *this;
 		}
 		BasicString<T> operator+(const BasicString<T>& str)
@@ -917,9 +780,6 @@ namespace Marble
 					{
 						switch (this->buffer[i])
 						{
-						case T('-'):
-							ret = -ret;
-							break;
 						case T('1'):
 							ret += static_cast<IntegralType>(1) * currentPlaceValue;
 							break;
@@ -1014,12 +874,12 @@ namespace Marble
 
 		bool contains(const BasicString<T>& str)
 		{
-			size_t len = Internal::cstrLen(this->buffer.data());
+			size_t len = this->buffer.size();
 
-			if (len < Internal::cstrLen(str.buffer.data()))
+			if (len < str.buffer.size())
 				return false;
 
-			for (size_t i = 0; i <= len - Internal::cstrLen(str.buffer.data()); i++)
+			for (size_t i = 0; i <= len - str.buffer.size(); i++)
 				if (Internal::eqIgnoreLen(str.buffer.data(), this->buffer.data()))
 					return true;
 			return false;
@@ -1031,7 +891,6 @@ namespace Marble
 			builder.append(str.buffer.data());
 			builder.append(this->buffer.data() + at);
 			this->buffer = std::move(builder.construct().buffer);
-
 			return *this;
 		}
 
@@ -1256,7 +1115,7 @@ namespace Marble
 		}
 		ret[strLen] = 0;
 
-		return std::move(ret);
+		return ret;
 	}
 	#pragma endregion
 

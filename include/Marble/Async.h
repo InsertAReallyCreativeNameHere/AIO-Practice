@@ -318,7 +318,7 @@ namespace Marble
 
             inline Task get_return_object() { return Task(std::coroutine_handle<Promise>::from_promise(*this)); }
 
-            inline std::suspend_never initial_suspend() { return { }; }
+            inline std::suspend_always initial_suspend() { return { }; }
             inline std::suspend_never final_suspend() noexcept { this->hasCompleted.test_and_set(std::memory_order_relaxed); return { }; }
 
             inline void unhandled_exception() { }
@@ -380,6 +380,15 @@ namespace Marble
             return true;
         }
 
+        void runAsynchronously()
+        {
+            this->coro.resume();
+        }
+        void runSynchronously()
+        {
+            this->coro.resume();
+        }
+
         void cancel()
         {
             this->coro.promise().stopReq.test_and_set(std::memory_order_relaxed);
@@ -391,16 +400,12 @@ namespace Marble
             template <typename T>
             void await_suspend(std::coroutine_handle<T> handle)
             {
-                if (!handle.promise().runSynchronously.test(std::memory_order_relaxed))
+                ThreadPool::threadJobs.enqueue([handle]()
                 {
-                    ThreadPool::threadJobs.enqueue([handle]()
-                    {
-                        handle.resume();
-                    });
-                }
-                else handle.resume();
+                    handle.resume();
+                });
             }
-            void await_resume() { }
+            void await_resume() {   }
         };
         struct Delay
         {

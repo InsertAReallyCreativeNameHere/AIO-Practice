@@ -13,6 +13,4 @@ C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(107,28): 
 C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(111,29): warning C4455: 'operator ""ui': literal suffix identifiers that do not start with an underscore are reserved
 C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(115,29): warning C4455: 'operator ""l': literal suffix identifiers that do not start with an underscore are reserved
 C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\defines.h(119,30): warning C4455: 'operator ""ul': literal suffix identifiers that do not start with an underscore are reserved
-C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\Async.h(394,39): error C2039: 'runSynchronously': is not a member of 'Marble::Task<void>::Promise'
-C:\Users\Administrator\Documents\GitHub\AIO-Practice\include\Marble\Async.h(314): message : see declaration of 'Marble::Task<void>::Promise'
-C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\Baubles\main.cpp(14): message : see reference to function template instantiation 'void Marble::Task<void>::yield::await_suspend<Marble::Task<void>::Promise>(std::coroutine_handle<Marble::Task<void>::Promise>)' being compiled
+  Baubles.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2020\bin\x64-[Baubles]-Debug-x64\Baubles.exe
