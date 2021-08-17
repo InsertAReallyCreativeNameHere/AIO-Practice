@@ -1,2 +1,2 @@
 # AIO Practice
- Practice Stuff for the Australian Informatics Olympiad
+ yeah its not just for aio anymore. cbs changing the name
