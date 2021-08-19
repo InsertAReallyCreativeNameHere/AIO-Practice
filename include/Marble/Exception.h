@@ -15,9 +15,11 @@
 #if _WIN32
 typedef struct IUnknown IUnknown; // *bad word* you objbase.h.
 #include <cfloat>
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#undef min
-#undef max
+#undef NOMINMAX
+#undef WIN32_LEAN_AND_MEAN
 #endif
 
 #if (defined(_MSC_VER) && !defined(__clang__)) && defined(_WIN32)
@@ -30,9 +32,14 @@ namespace Marble
 {
     namespace Internal
     {
+        struct JumpBuffer final
+        {
+            jmp_buf buffer;
+        };
+
         struct ErrorString final
         {
-            char str[4096] { 0 };
+            char str[1024] { 0 };
         };
 
         extern "C" void __cdecl signalHandler(int);
@@ -72,10 +79,10 @@ namespace Marble
             strcpy(err.str + strlen(err.str), __function);
             strcpy(err.str + strlen(err.str), "\",\n\t  in try-block at line ");
             sprintf(err.str + strlen(err.str), "%i", __line);
-            strcpy(err.str + strlen(err.str), ".\n\tAn illegal instruction signal was raised:\n\t  Is this executable corrupted?\nSignal handler returned 4 (SIGILL).");
+            strcpy(err.str + strlen(err.str), ".\n\tAn illegal instruction signal was raised.\nSignal handler returned 4 (SIGILL).\nNote: This is often caused by executable file corruption.");
             return std::move(err);
             #else
-            return { "Illegal instruction exception thrown." };
+            return { "Illegal instruction exception thrown.\nNote: This is often caused by executable file corruption." };
             #endif
         }().str)
         {
@@ -104,11 +111,11 @@ namespace Marble
                 #if __llex_msvc_win
                 ",\nor a vectored exception handler caught an arithmetic exception"
                 #endif
-                "."
+                ".\nNote: This is often caused by an integer division by zero."
             );
             return std::move(err);
             #else
-            return { "Arithmetic exception thrown." };
+            return { "Arithmetic exception thrown.\nNote: This is often caused by an integer division by zero." };
             #endif
         }().str)
         {
@@ -222,21 +229,9 @@ namespace Marble
 
     class ExceptionHandler final
     {
-        struct SignalHandlerData final
-        {
-            unsigned int size = std::thread::hardware_concurrency();
-            jmp_buf* buffers = (jmp_buf*)(new char[sizeof(jmp_buf) * this->size]);
-            std::thread::id* tIDs = (std::thread::id*)(new std::thread::id[this->size]);
-            std::atomic_flag dataFlag = ATOMIC_FLAG_INIT;
-
-            std::atomic_flag ctrlC = ATOMIC_FLAG_INIT;
-            std::atomic_flag ctrlBreak = ATOMIC_FLAG_INIT;
-
-            SignalHandlerData()
+        inline static struct Initializer final {
+            Initializer()
             {
-                for (size_t i = 0; i < (size_t)this->size; i++)
-                    this->tIDs[i] = std::thread::id();
-
                 signal(SIGILL, Marble::Internal::signalHandler);
                 signal(SIGSEGV, Marble::Internal::signalHandler);
                 signal(SIGTERM, Marble::Internal::signalHandler);
@@ -250,11 +245,8 @@ namespace Marble
                 signal(SIGFPE, Marble::signalHandler);
                 #endif
             }
-            ~SignalHandlerData()
+            ~Initializer()
             {
-                delete[] (char*)this->buffers;
-                delete[] this->tIDs;
-
                 signal(SIGILL, SIG_IGN);
                 signal(SIGFPE, SIG_IGN);
                 signal(SIGSEGV, SIG_IGN);
@@ -266,79 +258,28 @@ namespace Marble
                 SetConsoleCtrlHandler(Marble::Internal::consoleCtrlHandler, FALSE);
                 #endif
             }
-
-            jmp_buf* registerBufferForCurrentThread()
-            {
-                auto curTID = std::this_thread::get_id();
-                auto idComp = std::thread::id();
-                size_t i = 0;
-                RetryRegister:
-                while (this->dataFlag.test_and_set(std::memory_order_acquire));
-                for (i; i != SIZE_MAX; --i)
-                {
-                    if (this->tIDs[i] == idComp)
-                    {
-                        this->tIDs[i] = curTID;
-                        this->dataFlag.clear();
-                        return &this->buffers[i];
-                    }
-                }
-                this->dataFlag.clear();
-                std::this_thread::yield();
-                goto RetryRegister;
-            }
-            jmp_buf* getBufferForCurrentThread() // Only getting is async-signal safe.
-            {
-                auto curTID = std::this_thread::get_id(); // Technically not async-signal safe, but it works.
-                auto idComp = std::thread::id();
-                size_t i = 0;
-                while (this->dataFlag.test_and_set(std::memory_order_acquire));
-                for (i; i < this->size; i++)
-                {
-                    if (this->tIDs[i] == curTID)
-                    {
-                        this->dataFlag.clear();
-                        return &this->buffers[i];
-                    }
-                }
-                this->dataFlag.clear();
-                return nullptr;
-            }
-            void clearBufferForCurrentThread()
-            {
-                auto curTID = std::this_thread::get_id();
-                auto idSet = std::thread::id();
-                size_t i = 0;
-                while (this->dataFlag.test_and_set(std::memory_order_acquire));
-                for (i; i < this->size; i++)
-                {
-                    if (this->tIDs[i] == curTID)
-                    {
-                        this->tIDs[i] = idSet;
-                        break;
-                    }
-                }
-                this->dataFlag.clear();
-            }
-        };
+        } init;
     public:
-        inline static SignalHandlerData data;
+        inline static thread_local std::vector<Internal::JumpBuffer> threadBuffers { Internal::JumpBuffer() };
+        inline static thread_local jmp_buf* threadBuf;
+        inline static std::atomic_flag ctrlC = ATOMIC_FLAG_INIT;
+        inline static std::atomic_flag ctrlBreak = ATOMIC_FLAG_INIT;
 
         static bool ctrlCInterruptThrown()
         {
-            return ExceptionHandler::data.ctrlC.test(std::memory_order_acquire);
+            return ExceptionHandler::ctrlC.test(std::memory_order_acquire);
         }
         static bool ctrlBreakInterruptThrown()
         {
-            return ExceptionHandler::data.ctrlBreak.test(std::memory_order_acquire);
+            return ExceptionHandler::ctrlBreak.test(std::memory_order_acquire);
         }
         static void resetCtrlCInterruptFlag()
         {
-            ExceptionHandler::data.ctrlC.clear();
+            ExceptionHandler::ctrlC.clear();
         }
         static void resetCtrlBreakInterruptFlag()
         {
-            ExceptionHandler::data.ctrlBreak.clear();
+            ExceptionHandler::ctrlBreak.clear();
         }
 
         ExceptionHandler() = delete;
@@ -348,44 +289,33 @@ namespace Marble
     {
         extern "C" void __cdecl signalHandler(int sig)
         {
-            jmp_buf* buf = ExceptionHandler::data.getBufferForCurrentThread();
-            if (buf != nullptr)
+            signal(sig, Marble::Internal::signalHandler);
+            switch (sig)
             {
-                signal(sig, Marble::Internal::signalHandler);
-                switch (sig)
-                {
-                case SIGFPE:
-                case SIGILL:
-                case SIGSEGV:
-                case SIGTERM:
-                case SIGABRT:
-                    longjmp(*buf, sig);
-                    break;
-                }
+            #if !_WIN32
+            case SIGFPE:
+            #endif
+            case SIGILL:
+            case SIGSEGV:
+            case SIGTERM:
+            case SIGABRT:
+                longjmp(*ExceptionHandler::threadBuf, sig);
+                break;
             }
         }
         #if _WIN32
         extern "C" void __cdecl arithmeticSignalHandler(int sig, int err)
         {
-            jmp_buf* buf = ExceptionHandler::data.getBufferForCurrentThread();
-            if (buf != nullptr)
-            {
-                signal(SIGFPE, (void (__CRTDECL*)(int))Marble::Internal::arithmeticSignalHandler);
-                _fpreset();
-                longjmp(*buf, SIGFPE);
-            }
+            signal(SIGFPE, (void (__CRTDECL*)(int))Marble::Internal::arithmeticSignalHandler);
+            longjmp(*ExceptionHandler::threadBuf, SIGFPE);
         }
         LONG NTAPI vectoredExceptionHandler(_EXCEPTION_POINTERS* exptr)
         {
-            jmp_buf* buf = ExceptionHandler::data.getBufferForCurrentThread();
-            if (buf != nullptr)
+            switch (exptr->ExceptionRecord->ExceptionCode)
             {
-                switch (exptr->ExceptionRecord->ExceptionCode)
-                {
-                case EXCEPTION_INT_DIVIDE_BY_ZERO:
-                    longjmp(*buf, SIGFPE);
-                    break;
-                }
+            case EXCEPTION_INT_DIVIDE_BY_ZERO:
+                longjmp(*ExceptionHandler::threadBuf, SIGFPE);
+                break;
             }
             return ExceptionContinueSearch;
         }
@@ -394,11 +324,11 @@ namespace Marble
             switch (ctrlEv)
             {
             case CTRL_C_EVENT:
-                ExceptionHandler::data.ctrlC.test_and_set();
+                ExceptionHandler::ctrlC.test_and_set();
                 return TRUE;
                 break;
             case CTRL_BREAK_EVENT:
-                ExceptionHandler::data.ctrlBreak.test_and_set();
+                ExceptionHandler::ctrlBreak.test_and_set();
                 return TRUE;
                 break;
             }
@@ -432,7 +362,7 @@ namespace Marble
 #if _DEBUG
 #define __llex_fileData __FILE__, __llex_function, __LINE__
 #if __llex_msvc_win
-#define __llex_get_exrec EXCEPTION_RECORD __exrec = *((PEXCEPTION_POINTERS)_pxcptinfoptrs)->ExceptionRecord; EXCEPTION_RECORD* exrec = &__exrec
+#define __llex_get_exrec EXCEPTION_RECORD __exrec = *((PEXCEPTION_POINTERS)_pxcptinfoptrs)->ExceptionRecord; PEXCEPTION_RECORD exrec = &__exrec
 #else
 #define __llex_get_exrec void* exrec = nullptr
 #endif
@@ -442,41 +372,55 @@ namespace Marble
 #endif
 
 // Your punishment for trying to catch a nullptr exception is typing all this out everytime.
-#define lowLevelExceptionsSectionBegin() \
-switch (setjmp(*Marble::ExceptionHandler::data.registerBufferForCurrentThread())) \
+#define lowLevelExceptionsSectionBegin \
 { \
-case SIGILL: \
+    Marble::ExceptionHandler::threadBuffers.push_back(Marble::Internal::JumpBuffer()); \
+    Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+    switch (setjmp(*Marble::ExceptionHandler::threadBuf)) \
     { \
-        lowLevelExceptionsSectionEnd(); \
-        throw Marble::IllegalInstructionException(__llex_fileData); \
-    } \
-    break; \
-case SIGFPE: \
-    { \
-        lowLevelExceptionsSectionEnd(); \
-        throw Marble::ArithmeticException(__llex_fileData); \
-    } \
-    break; \
-case SIGSEGV: \
-    { \
-        lowLevelExceptionsSectionEnd(); \
-        __llex_get_exrec; \
-        throw Marble::SegmentationFaultException(__llex_fileData, exrec); \
-    } \
-    break; \
-case SIGTERM: \
-    { \
-        lowLevelExceptionsSectionEnd(); \
-        throw Marble::TerminateException(__llex_fileData); \
-    } \
-    break; \
-case SIGABRT: \
-    { \
-        lowLevelExceptionsSectionEnd(); \
-        throw Marble::AbortException(__llex_fileData); \
-    } \
-    break; \
-}
+    case 0: \
+        {
 
-#define lowLevelExceptionsSectionEnd() \
-Marble::ExceptionHandler::data.clearBufferForCurrentThread()
+#define lowLevelExceptionsSectionEnd \
+        } \
+        break; \
+    case SIGILL: \
+        { \
+            Marble::ExceptionHandler::threadBuffers.pop_back(); \
+            Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+            throw Marble::IllegalInstructionException(__llex_fileData); \
+        } \
+        break; \
+    case SIGFPE: \
+        { \
+            Marble::ExceptionHandler::threadBuffers.pop_back(); \
+            Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+            throw Marble::ArithmeticException(__llex_fileData); \
+        } \
+        break; \
+    case SIGSEGV: \
+        { \
+            __llex_get_exrec; \
+            Marble::ExceptionHandler::threadBuffers.pop_back(); \
+            Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+            throw Marble::SegmentationFaultException(__llex_fileData, exrec); \
+        } \
+        break; \
+    case SIGTERM: \
+        { \
+            Marble::ExceptionHandler::threadBuffers.pop_back(); \
+            Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+            throw Marble::TerminateException(__llex_fileData); \
+        } \
+        break; \
+    case SIGABRT: \
+        { \
+            Marble::ExceptionHandler::threadBuffers.pop_back(); \
+            Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+            throw Marble::AbortException(__llex_fileData); \
+        } \
+        break; \
+    } \
+    Marble::ExceptionHandler::threadBuffers.pop_back(); \
+    Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
+}

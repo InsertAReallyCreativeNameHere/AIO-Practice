@@ -58,7 +58,6 @@ Marble::BasicString<char> input; \
 #else
 #define __noinline __declspec(noinline)
 #endif
-#define __sec_func_attr __noinline
 
 #pragma region Floating Point Literals
 constexpr float operator"" f(unsigned long long val)
@@ -88,35 +87,35 @@ constexpr long double operator"" ld(long double val)
 #pragma endregion
 
 #pragma region Integer Literals
-constexpr __byte operator"" b(unsigned long long val)
+constexpr __byte operator"" _b(unsigned long long val)
 {
     return __byte(val);
 }
-constexpr __sbyte operator"" sb(unsigned long long val)
+constexpr __sbyte operator"" _sb(unsigned long long val)
 {
     return __sbyte(val);
 }
-constexpr __short operator"" s(unsigned long long val)
+constexpr __short operator"" _s(unsigned long long val)
 {
     return __short(val);
 }
-constexpr __ushort operator"" us(unsigned long long val)
+constexpr __ushort operator"" _us(unsigned long long val)
 {
     return __ushort(val);
 }
-constexpr __int operator"" i(unsigned long long val)
+constexpr __int operator"" _i(unsigned long long val)
 {
     return __int(val);
 }
-constexpr __uint operator"" ui(unsigned long long val)
+constexpr __uint operator"" _ui(unsigned long long val)
 {
     return __uint(val);
 }
-constexpr __long operator"" l(unsigned long long val)
+constexpr __long operator"" _l(unsigned long long val)
 {
     return __long(val);
 }
-constexpr __ulong operator"" ul(unsigned long long val)
+constexpr __ulong operator"" _ul(unsigned long long val)
 {
     return __ulong(val);
 }

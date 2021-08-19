@@ -3,36 +3,78 @@
 
 using namespace Marble;
 
-#undef Yield
-
-Task<> doThing()
+struct test
 {
-    for (int i = 0; i < 100; i++)
+int i = 0;
+    test()
     {
-        co_await Task<>::Yield();
+        std::cout << "ctor\n";
     }
-    std::cout << "hit dothing\n";
-    co_return;
-}
-Task<> test()
-{
-    co_await Task<>::Yield();
-    Task<> test = doThing();
-    std::cout << "hit test\n";
-    co_await test;
-    co_return;
-}
-void notcoro()
-{
-    for (int i = 0; i < 400; i++)
-        test().wait();
-    std::cout << "hit main\n";
-}
+    ~test()
+    {
+        std::cout << "dtor\n";
+    }
+};
 
-using Bruh = unsigned long long;
-
-__noinline int main()
+test* testfunc()
 {
-    FileInput("tennisin.txt");
-    std::cout << input << '\n';
+    test* ptr = nullptr;
+
+    try
+    {
+        lowLevelExceptionsSectionBegin
+
+        test tsts;
+        tsts.i = 69;
+        ptr = &tsts;
+
+        *(int*)0 = 0;
+
+        lowLevelExceptionsSectionEnd
+    }
+    catch (Marble::LowLevelException& ex)
+    {
+        std::cout << ex.what() << '\n';
+    }
+
+    return ptr;
+}
+int main()
+{
+    while (true)
+    {
+        try
+        {
+            struct __test
+            {
+                char* testarr;
+                __test()
+                {
+                    this->testarr = new char[262144];
+                }
+                ~__test()
+                {
+                    delete[] this->testarr;
+                }
+            };
+            
+            lowLevelExceptionsSectionBegin
+
+            volatile char __c[32768]{ 0 };
+            std::cout << __c << '\n';
+            
+            __test arr;
+            printf("%p\n", arr.testarr);
+
+            std::cout << testfunc()->i << '\n';
+
+            *(int*)0 = 0;
+
+            lowLevelExceptionsSectionEnd
+        }
+        catch (Marble::LowLevelException& ex)
+        {
+            std::cout << ex.what() << '\n';
+        }
+    }
 }

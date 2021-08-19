@@ -331,88 +331,56 @@ namespace Marble
 			for (size_t i = 0; i < len; i++)
 				buffer[i] = begin[i];
 		}
+
+		template <typename T> T identity(T);
 	}
 
-	#pragma region BasicString Forward
-	template <typename T>
-	class BasicString;
-	#pragma endregion
-
-	#pragma region BasicStringBuilder Declaration
-	template <typename T>
-	class BasicStringBuilder
-	{
-		std::list<ManagedArray<T>> internalBuffer;
-	public:
-		void append(const T* buffer);
-		void append(const T* buffer, size_t len);
-		void append(const T* begin, const T* end);
-		BasicString<T> construct();
-	};
-	#pragma endregion
-
-	#pragma region BasicString Definition
 	template <typename T>
 	class BasicString final
 	{
+		static constexpr T whitespace[] { T(' '), T('\t'), T('\n'), T('\r'), T('\f'), T('\v') };
+
 		std::basic_string<T> buffer;
 	public:
-		BasicString()
+		constexpr BasicString()
 		{
 		}
-		BasicString(size_t length) : buffer(length + 1)
+		constexpr BasicString(size_t length) noexcept(std::is_nothrow_constructible<std::basic_string<T>, size_t>::value) : buffer(length + 1)
 		{
 		}
-		BasicString(std::vector<BasicString<T>> strings, const BasicString<T>& delimiter)
-		{
-			if (!strings.empty())
-			{
-				BasicStringBuilder<T> builder;
-				for (auto it = strings.begin(); it != --strings.end(); ++it)
-				{
-					builder.append(*it);
-					builder.append(delimiter.buffer.data());
-				}
-				builder.append(*(--strings.end()));
-				this->buffer = std::move(builder.construct().buffer);
-			}
-		}
-		BasicString(const T* cstring) : buffer(cstring)
+		constexpr BasicString(const T* cstring) noexcept(std::is_nothrow_constructible<std::basic_string<T>, const T*>::value) : buffer(cstring)
 		{
 		}
-		BasicString(const BasicString<T>& other) : buffer(other.buffer)
+		constexpr BasicString(const BasicString<T>& other) noexcept(std::is_nothrow_copy_constructible<std::basic_string<T>>::value) : buffer(other.buffer)
 		{
 		}
-		BasicString(BasicString<T>&& other) noexcept
+		constexpr BasicString(BasicString<T>&& other) noexcept(std::is_nothrow_move_constructible<std::basic_string<T>>::value) : buffer(std::move(other.buffer))
 		{
-			this->buffer = other.buffer;
-			other.buffer = "";
 		}
 
-		BasicString& operator=(const T* cstring)
+		constexpr BasicString& operator=(const T* cstring) noexcept(std::is_nothrow_assignable<std::basic_string<T>, const T*>::value)
 		{
 			this->buffer = cstring;
 			return *this;
 		}
-		BasicString& operator=(const BasicString<T>& other)
+		constexpr BasicString& operator=(const BasicString<T>& other) noexcept(std::is_nothrow_copy_assignable<std::basic_string<T>>::value)
 		{
 			this->buffer = other.buffer;
 			return *this;
 		}
-		BasicString& operator=(BasicString<T>&& other) noexcept
+		constexpr BasicString& operator=(BasicString<T>&& other) noexcept(std::is_nothrow_move_assignable<std::basic_string<T>>::value)
 		{
-			this->buffer = other.buffer;
-			other.buffer = "";
+			this->buffer = std::move(other.buffer);
 			return *this;
 		}
 
 		template <typename... Args>
-		static BasicString<T> format(const BasicString<T>& format, Args... args)
+		static constexpr BasicString<T> format(const T* format, Args... args)
 		{
 			try
 			{
 				fmt::basic_memory_buffer<T> ret;
-				fmt::format_to(ret.begin(), format.cStr(), args...);
+				fmt::format_to(ret.begin(), format, args...);
 				return ret.begin();
 			}
 			catch (fmt::format_error)
@@ -421,105 +389,144 @@ namespace Marble
 				return err;
 			}
 		}
+		constexpr std::vector<BasicString<T>> split(const BasicString<T>& delimiter)
+		{
+			std::vector<BasicString<T>> splitStrings;
 
-		const T* cStr() const
-		{
-			return this->buffer.data();
+			size_t thisLen = Internal::cstrLen(this->buffer.data());
+
+			size_t splitBegin = 0;
+			for (size_t i = 0; i < thisLen - Internal::cstrLen(delimiter.buffer.data()) + 1;)
+			{
+				if (Internal::eqIgnoreLen(delimiter.buffer.data(), this->buffer.data() + i))
+				{
+					BasicString<T> str(i - splitBegin);
+					Internal::mkStr(str.buffer.begin(), this->buffer.data() + splitBegin, this->buffer.data() + i);
+					splitStrings.push_back(std::move(str));
+
+					i += Internal::cstrLen(delimiter.buffer.data());
+					splitBegin = i;
+				}
+				else i++;
+			}
+			BasicString<T> str(thisLen - splitBegin);
+			Internal::mkStr(str.buffer.begin(), this->buffer.data() + splitBegin, this->buffer.data() + thisLen);
+			splitStrings.push_back(std::move(str));
+
+			return std::move(splitStrings);
 		}
-		operator const T* () const
+		static constexpr BasicString<T> join(std::vector<BasicString<T>> strings, const BasicString<T>& delimiter)
 		{
-			return this->buffer.data();
-		}
-		T* data() const
-		{
-			return buffer.data();
+			if (!strings.empty()) [[likely]]
+			{
+				BasicString<T> ret(*strings.begin());
+				for (auto it = ++strings.begin(); it != strings.end(); ++it)
+				{
+					ret.buffer.append(delimiter.buffer.data());
+					ret.buffer.append(it->buffer);
+				}
+				return ret;
+			}
+			else return BasicString<T>();
 		}
 
-		void shrinkToFit()
+		constexpr const T* cStr() const noexcept
+		{
+			return this->buffer.c_str();
+		}
+		constexpr operator const T* () const noexcept
+		{
+			return this->buffer.c_str();
+		}
+		constexpr T* data() const noexcept//(i give up on this one)
+		{
+			return const_cast<T*>(buffer.data()); // I am going to hell.
+		}
+
+		constexpr void shrinkToFit()
 		{
 			this->buffer.shrink_to_fit();
 		}
-		void resize(size_t len)
+		constexpr void resize(size_t len)
 		{
 			this->buffer.resize(len);
 		}
-		void clear()
+		constexpr void clear()
 		{
 			this->buffer.clear();
 		}
-		bool empty()
+		constexpr bool empty()
 		{
 			return this->empty();
 		}
 
-		std::basic_string<T>::iterator begin()
+		constexpr std::basic_string<T>::iterator begin()
 		{
 			return this->buffer.begin();
 		}
-		std::basic_string<T>::iterator end()
+		constexpr std::basic_string<T>::iterator end()
 		{
 			return this->buffer.end();
 		}
-		std::basic_string<T>::reverse_iterator rbegin()
+		constexpr std::basic_string<T>::reverse_iterator rbegin()
 		{
 			return this->buffer.rbegin();
 		}
-		std::basic_string<T>::reverse_iterator rend()
+		constexpr std::basic_string<T>::reverse_iterator rend()
 		{
 			return this->buffer.rend();
 		}
-		std::basic_string<T>::const_iterator cbegin()
+		constexpr std::basic_string<T>::const_iterator cbegin()
 		{
 			return this->buffer.cbegin();
 		}
-		std::basic_string<T>::const_iterator cend()
+		constexpr std::basic_string<T>::const_iterator cend()
 		{
 			return this->buffer.cend();
 		}
-		std::basic_string<T>::const_reverse_iterator crbegin()
+		constexpr std::basic_string<T>::const_reverse_iterator crbegin()
 		{
 			return this->buffer.crbegin();
 		}
-		std::basic_string<T>::const_reverse_iterator crend()
+		constexpr std::basic_string<T>::const_reverse_iterator crend()
 		{
 			return this->buffer.crend();
 		}
-		T& front()
+		constexpr T& front()
 		{
 			return this->buffer.front();
 		}
-		T& back()
+		constexpr T& back()
 		{
 			return this->buffer.back();
 		}
-		T& operator[](const size_t& index) const
+		constexpr T& operator[](const size_t& index) const
 		{
 			return this->buffer[index];
 		}
-		size_t length()
+		constexpr size_t length()
 		{
 			return this->buffer.size();
 		}
-		size_t capacity()
+		constexpr size_t capacity()
 		{
 			return this->buffer.capacity();
 		}
 
-		BasicString<T>& operator+=(const BasicString<T>& str)
+		constexpr BasicString<T>& operator+=(const BasicString<T>& str)
 		{
 			this->buffer.reserve(this->buffer.size() + str.buffer.size());
 			this->buffer.append(str.buffer);
 			return *this;
 		}
-		BasicString<T> operator+(const BasicString<T>& str)
+		constexpr BasicString<T> operator+(const BasicString<T>& str)
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data());
-			builder.append(str.buffer.data());
-			return std::move(builder.construct());
+			BasicString<T> ret(this->buffer.data());
+			ret.buffer.append(str.buffer.data());
+			return ret;
 		}
 
-		bool operator==(const BasicString<T>& other) const
+		constexpr bool operator==(const BasicString<T>& other) const
 		{
 			if (Internal::cstrLen(this->buffer.data()) != Internal::cstrLen(other.buffer.data()))
 				return false;
@@ -534,7 +541,7 @@ namespace Marble
 
 			return true;
 		}
-		bool operator!=(const BasicString<T>& other) const
+		constexpr bool operator!=(const BasicString<T>& other) const
 		{
 			if (Internal::cstrLen<T>(this->buffer.data()) != Internal::cstrLen<T>(other.buffer.data()))
 				return true;
@@ -552,7 +559,7 @@ namespace Marble
 
 		
 		template <typename IntegralType>
-		IntegralType toIntegralType()
+		constexpr IntegralType toIntegralType()
 		{
 			static_assert(std::is_integral<IntegralType>::value, "toIntegralType requires an integral template parameter.");
 			static_assert(std::is_same<T, char>::value || std::is_same<T, wchar_t>::value, "toIntegralType requires a char/wchar_t BasicString.");
@@ -852,7 +859,7 @@ namespace Marble
 		}*/
 
 		template <typename FloatingPointType>
-		FloatingPointType toFloatingPointType()
+		constexpr FloatingPointType toFloatingPointType()
 		{
 			FloatingPointType ret;
 			T* endPtr;
@@ -884,120 +891,36 @@ namespace Marble
 					return true;
 			return false;
 		}
-		BasicString<T>& insert(size_t at, const BasicString<T>& str)
+		constexpr BasicString<T>& insert(size_t at, const BasicString<T>& str)
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data(), at);
-			builder.append(str.buffer.data());
-			builder.append(this->buffer.data() + at);
-			this->buffer = std::move(builder.construct().buffer);
+			this->buffer.insert(at, str.buffer);
 			return *this;
 		}
 
-		BasicString<T>& trim()
+		constexpr BasicString<T>& trim()
 		{
-			size_t len = Internal::cstrLen(this->buffer.data());
-
-			size_t beginOffset = 0;
-			while (Internal::isSpace(this->buffer[beginOffset]))
-			{
-				if (beginOffset == len - 1) // Check for all whitespace string.
-				{
-					this->buffer.reset(1);
-					this->buffer[0] = 0;
-					return;
-				}
-				beginOffset++;
-			}
-
-			size_t endOffset = len - 1;
-			while (Internal::isSpace(this->buffer[endOffset]))
-				endOffset--;
-
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data() + beginOffset, this->buffer.data() + endOffset + 1);
-			this->buffer = std::move(builder.construct().buffer);
-
+			this->buffer.erase(this->buffer.find_last_not_of(BasicString<T>::whitespace) + 1);
+			this->buffer.erase(0, this->buffer.find_first_not_of(BasicString<T>::whitespace));
 			return *this;
 		}
-		BasicString<T>& trimStart()
+		constexpr BasicString<T>& trimStart()
 		{
-			size_t len = Internal::cstrLen(this->buffer.data());
-
-			size_t beginOffset = 0;
-			while (Internal::isSpace(this->buffer[beginOffset]))
-			{
-				if (beginOffset == len - 1) // Check for all whitespace string.
-				{
-					this->buffer.reset(1);
-					this->buffer[0] = 0;
-					return;
-				}
-				beginOffset++;
-			}
-
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data() + beginOffset, this->buffer.data() + len);
-			this->buffer = std::move(builder.construct().buffer);
-
+			this->buffer.erase(0, this->buffer.find_first_not_of(BasicString<T>::whitespace));
 			return *this;
 		}
-		BasicString<T>& trimEnd()
+		constexpr BasicString<T>& trimEnd()
 		{
-			size_t len = Internal::cstrLen(this->buffer.data());
-
-			size_t endOffset = len - 1;
-			while (Internal::isSpace(this->buffer[endOffset]))
-			{
-				if (endOffset == 0)
-				{
-					this->buffer.reset(1);
-					this->buffer[0] = 0;
-					return;
-				}
-				endOffset--;
-			}
-
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data(), this->buffer.data() + endOffset + 1);
-			this->buffer = std::move(builder.construct().buffer);
-
+			this->buffer.erase(this->buffer.find_last_not_of(BasicString<T>::whitespace) + 1);
 			return *this;
 		}
-		std::vector<BasicString<T>> split(const BasicString<T>& delimiter)
-		{
-			std::vector<BasicString<T>> splitStrings;
 
-			size_t thisLen = Internal::cstrLen(this->buffer.data());
-
-			size_t splitBegin = 0;
-			for (size_t i = 0; i < thisLen - Internal::cstrLen(delimiter.buffer.data()) + 1;)
-			{
-				if (Internal::eqIgnoreLen(delimiter.buffer.data(), this->buffer.data() + i))
-				{
-					BasicString<T> str(i - splitBegin);
-					Internal::mkStr(str.buffer.begin(), this->buffer.data() + splitBegin, this->buffer.data() + i);
-					splitStrings.push_back(std::move(str));
-
-					i += Internal::cstrLen(delimiter.buffer.data());
-					splitBegin = i;
-				}
-				else i++;
-			}
-			BasicString<T> str(thisLen - splitBegin);
-			Internal::mkStr(str.buffer.begin(), this->buffer.data() + splitBegin, this->buffer.data() + thisLen);
-			splitStrings.push_back(std::move(str));
-
-			return std::move(splitStrings);
-		}
-
-		bool startsWith(const BasicString<T>& str)
+		constexpr bool startsWith(const BasicString<T>& str)
 		{
 			if (Internal::cstrLen(this->buffer.data()) < Internal::cstrLen(str.buffer.data()))
 				return false;
 			return Internal::eqIgnoreLen(str.buffer.data(), this->buffer.data());
 		}
-		bool endsWith(const BasicString<T>& str)
+		constexpr bool endsWith(const BasicString<T>& str)
 		{
 			size_t thisLen = Internal::cstrLen(this->buffer.data());
 			size_t strLen = Internal::cstrLen(str.buffer.data());
@@ -1006,7 +929,7 @@ namespace Marble
 			return Internal::eqIgnoreLen(str.buffer.data(), this->buffer.data() + thisLen - strLen);
 		}
 
-		BasicString<T>& toLowerCase()
+		constexpr BasicString<T>& toLowerCase()
 		{
 			size_t i = 0;
 			while (this->buffer[i] != 0)
@@ -1016,7 +939,7 @@ namespace Marble
 			}
 			return *this;
 		}
-		BasicString<T>& toUpperCase()
+		constexpr BasicString<T>& toUpperCase()
 		{
 			size_t i = 0;
 			while (this->buffer[i] != 0)
@@ -1027,101 +950,29 @@ namespace Marble
 			return *this;
 		}
 
-		BasicString<T> substring(size_t fromInclusive, size_t toExclusive)
+		constexpr BasicString<T> substring(size_t fromInclusive, size_t toExclusive)
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data() + fromInclusive, this->buffer.data() + toExclusive);
-			return std::move(builder.construct());
+			return { this->buffer.substr(fromInclusive, toExclusive) };
 		}
-		BasicString<T>& remove(size_t fromInclusive, size_t toExclusive)
+		constexpr BasicString<T>& remove(size_t fromInclusive, size_t toExclusive)
 		{
-			BasicStringBuilder<T> builder;
-			builder.append(this->buffer.data(), this->buffer.data() + fromInclusive);
-			builder.append(this->buffer.data() + toExclusive, this->buffer.data() + Internal::cstrLen(this->buffer.data()));
-			this->buffer = std::move(builder.construct().buffer);
-
+			this->buffer.erase(fromInclusive, toExclusive - fromInclusive);
 			return *this;
 		}
-		BasicString<T>& replace(const BasicString<T>& matchStr, const BasicString<T>& replaceStr)
+		constexpr BasicString<T>& replace(const BasicString<T>& matchStr, const BasicString<T>& replaceStr)
 		{
-			BasicStringBuilder<T> builder;
-
-			size_t thisLen = Internal::cstrLen(this->buffer.data());
-
-			size_t splitBegin = 0;
-			for (size_t i = 0; i < thisLen - Internal::cstrLen(matchStr.buffer.data()) + 1;)
+			size_t mlen = matchStr.buffer.size();
+			size_t rlen = replaceStr.buffer.size();
+			size_t index = 0;
+			while ((index = this->buffer.find(matchStr, index)) != std::basic_string<T>::npos)
 			{
-				if (Internal::eqIgnoreLen(matchStr.buffer.data(), this->buffer.data() + i))
-				{
-					builder.append(this->buffer.data() + splitBegin, this->buffer.data() + i);
-					builder.append(replaceStr.buffer.data());
-					i += Internal::cstrLen(matchStr.buffer.data());
-					splitBegin = i;
-				}
-				else i++;
+				this->buffer.replace(index, mlen, replaceStr.buffer);
+				index += rlen;
 			}
-			builder.append(this->buffer.data() + splitBegin, this->buffer.data() + thisLen);
-
-			this->buffer = std::move(builder.construct().buffer);
-
 			return *this;
 		}
 	};
-	#pragma endregion
-
-	#pragma region BasicStringBuilder Definition
-	template <typename T>
-	void BasicStringBuilder<T>::append(const T* buffer)
-	{
-		size_t len = Internal::cstrLen(buffer);
-		ManagedArray<T> sec(len);
-		for (size_t i = 0; i < len; i++)
-			sec[i] = buffer[i];
-		this->internalBuffer.push_back(std::move(sec));
-	}
-	template <typename T>
-	void BasicStringBuilder<T>::append(const T* buffer, size_t len)
-	{
-		ManagedArray<T> sec(len);
-		for (size_t i = 0; i < len; i++)
-			sec[i] = buffer[i];
-		this->internalBuffer.push_back(std::move(sec));
-	}
-	template <typename T>
-	void BasicStringBuilder<T>::append(const T* begin, const T* end)
-	{
-		size_t len = end - begin;
-		ManagedArray<T> sec(len);
-		for (size_t  i = 0; i < len; i++)
-			sec[i] = *(begin + i);
-		this->internalBuffer.push_back(std::move(sec));
-	}
-	template <typename T>
-	BasicString<T> BasicStringBuilder<T>::construct()
-	{
-		size_t strLen = 0;
-		for (auto it = this->internalBuffer.begin(); it != this->internalBuffer.end(); ++it)
-			strLen += it->length();
-
-		BasicString<T> ret(strLen + 1);
-		size_t i = 0;
-		for (auto it = this->internalBuffer.begin(); it != this->internalBuffer.end(); ++it)
-		{
-			for (size_t j = 0; j < it->length(); j++)
-			{
-				ret[i] = (*it)[j];
-				i++;
-			}
-		}
-		ret[strLen] = 0;
-
-		return ret;
-	}
-	#pragma endregion
 
 	using string = BasicString<char>;
 	using wstring = BasicString<wchar_t>;
-
-	using StringBuilder = BasicStringBuilder<char>;
-	using WideStringBuilder = BasicStringBuilder<wchar_t>;
 }

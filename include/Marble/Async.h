@@ -49,7 +49,8 @@ namespace Marble
         inline static struct Initializer final {
             Initializer()
             {
-                size_t tc(std::thread::hardware_concurrency());
+                //size_t tc(std::thread::hardware_concurrency());
+                size_t tc = 1;
                 --tc;
 
                 if (tc != 0)
@@ -57,7 +58,7 @@ namespace Marble
                     for (size_t i = 0; i < tc; i++)
                         ThreadPool::threads.enqueue(new Thread);
                 }
-                else ThreadPool::threads.enqueue(new Thread);
+                //else ThreadPool::threads.enqueue(new Thread);
             }
             ~Initializer()
             {
