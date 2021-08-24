@@ -20,6 +20,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpp.hint" />
+    <Text Include="baublesin.txt" />
   </ItemGroup>
 </Project>

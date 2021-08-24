@@ -1,80 +1,45 @@
-#include <stdinc.h>
-#include <defines.h>
+#include <cstdint>
+#include <iostream>
+#include <fstream>
 
-using namespace Marble;
+#define __long int64_t
 
-struct test
-{
-int i = 0;
-    test()
-    {
-        std::cout << "ctor\n";
-    }
-    ~test()
-    {
-        std::cout << "dtor\n";
-    }
-};
-
-test* testfunc()
-{
-    test* ptr = nullptr;
-
-    try
-    {
-        lowLevelExceptionsSectionBegin
-
-        test tsts;
-        tsts.i = 69;
-        ptr = &tsts;
-
-        *(int*)0 = 0;
-
-        lowLevelExceptionsSectionEnd
-    }
-    catch (Marble::LowLevelException& ex)
-    {
-        std::cout << ex.what() << '\n';
-    }
-
-    return ptr;
-}
 int main()
 {
-    while (true)
-    {
-        try
-        {
-            struct __test
-            {
-                char* testarr;
-                __test()
-                {
-                    this->testarr = new char[262144];
-                }
-                ~__test()
-                {
-                    delete[] this->testarr;
-                }
-            };
-            
-            lowLevelExceptionsSectionBegin
+	std::ifstream in("baublesin.txt");
+	std::ofstream out("baublesout.txt");
 
-            volatile char __c[32768]{ 0 };
-            std::cout << __c << '\n';
-            
-            __test arr;
-            printf("%p\n", arr.testarr);
+	__long red;
+	__long blue;
+	__long spare;
+	__long redOrdered;
+	__long blueOrdered;
 
-            std::cout << testfunc()->i << '\n';
+	in >> red;
+	in >> blue;
+	in >> spare;
+	in >> redOrdered;
+	in >> blueOrdered;
 
-            *(int*)0 = 0;
+	std::cout << red << ' ' << blue << ' ' << spare << ' ' << redOrdered << ' ' << blueOrdered << '\n';
 
-            lowLevelExceptionsSectionEnd
-        }
-        catch (Marble::LowLevelException& ex)
-        {
-            std::cout << ex.what() << '\n';
-        }
-    }
+	auto redDiff = redOrdered - red;
+	red += redDiff;
+	spare -= redDiff;
+	auto blueDiff = blueOrdered - blue;
+	blue += blueDiff;
+	spare -= blueDiff;
+
+	if (redOrdered + blueOrdered < red + blue)
+	{
+		if (blueOrdered < redOrdered)
+			spare -= blueOrdered;
+		else spare -= redOrdered;
+	}
+
+	auto result = (spare < 0 ? 0 : spare + 1);
+
+	std::cout << result << '\n';
+
+	out << result;
 }

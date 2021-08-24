@@ -1,11 +1,177 @@
 #pragma once
 
 #include <cstdint>
+#include <exception>
 #include <string>
 #include <type_traits>
 
 namespace Marble
 {
+    #define __mem_checkptr_constexpr constexpr
+
+    class CheckedNullPointerException : public std::runtime_error
+    {
+    public:
+        CheckedNullPointerException() : std::runtime_error("A checked_ptr was nullptr.")
+        {
+        }
+    };
+
+    template <typename T>
+    struct shit_ptr
+    {
+        __mem_checkptr_constexpr shit_ptr() : ptr(nullptr)
+        {
+        }
+        __mem_checkptr_constexpr shit_ptr(T* ptr) : ptr(ptr)
+        {
+        }
+        __mem_checkptr_constexpr shit_ptr(const shit_ptr<T>& other) : ptr(other.ptr)
+        {
+        }
+
+        inline __mem_checkptr_constexpr shit_ptr<T>& operator=(T* ptr)
+        {
+            this->ptr = ptr;
+        }
+        inline __mem_checkptr_constexpr shit_ptr<T>& operator=(const shit_ptr<T>& other)
+        {
+            this->ptr = other.ptr;
+        }
+
+        inline __mem_checkptr_constexpr shit_ptr<T>& operator++()
+        {
+            ++this->ptr;
+            return *this;
+        }
+        inline __mem_checkptr_constexpr shit_ptr<T>& operator--()
+        {
+            --this->ptr;
+            return *this;
+        }
+        inline __mem_checkptr_constexpr shit_ptr<T> operator++(int)
+        {
+            T* ret = this->ptr;
+            ++this->ptr;
+            return ret;
+        }
+        inline __mem_checkptr_constexpr shit_ptr<T> operator--(int)
+        {
+            T* ret = this->ptr;
+            --this->ptr;
+            return ret;
+        }
+
+        inline __mem_checkptr_constexpr operator T* () const
+        {
+            return this->ptr;
+        }
+        inline __mem_checkptr_constexpr T* unsafe() const
+        {
+            return this->ptr;
+        }
+        inline __mem_checkptr_constexpr T* get() const
+        {
+            return this->ptr ? this->ptr : throw CheckedNullPointerException();
+        }
+
+        inline __mem_checkptr_constexpr T* operator->() const
+        {
+            return this->ptr ? this->ptr : throw CheckedNullPointerException();
+        }
+        inline __mem_checkptr_constexpr T& operator*() const
+        {
+            return this->ptr ? *this->ptr : throw CheckedNullPointerException();
+        }
+    private:
+        T* ptr;
+    };
+
+    namespace
+    {
+        inline static __mem_checkptr_constexpr void* (*checkMemory[2])(void*)
+        {
+            +[](void* ptr) -> void*
+            {
+                throw CheckedNullPointerException();
+            },
+            +[](void* ptr) -> void*
+            {
+                return ptr;
+            }
+        };
+    }
+
+    template <typename T>
+    struct checked_ptr
+    {
+        __mem_checkptr_constexpr checked_ptr() : ptr(nullptr)
+        {
+        }
+        __mem_checkptr_constexpr checked_ptr(T* ptr) : ptr(ptr)
+        {
+        }
+        __mem_checkptr_constexpr checked_ptr(const checked_ptr<T>& other) : ptr(other.ptr)
+        {
+        }
+
+        inline __mem_checkptr_constexpr checked_ptr<T>& operator=(T* ptr)
+        {
+            this->ptr = ptr;
+        }
+        inline __mem_checkptr_constexpr checked_ptr<T>& operator=(const checked_ptr<T>& other)
+        {
+            this->ptr = other.ptr;
+        }
+
+        inline __mem_checkptr_constexpr checked_ptr<T>& operator++()
+        {
+            ++this->ptr;
+            return *this;
+        }
+        inline __mem_checkptr_constexpr checked_ptr<T>& operator--()
+        {
+            --this->ptr;
+            return *this;
+        }
+        inline __mem_checkptr_constexpr checked_ptr<T> operator++(int)
+        {
+            T* ret = this->ptr;
+            ++this->ptr;
+            return ret;
+        }
+        inline __mem_checkptr_constexpr checked_ptr<T> operator--(int)
+        {
+            T* ret = this->ptr;
+            --this->ptr;
+            return ret;
+        }
+
+        inline __mem_checkptr_constexpr operator T* () const
+        {
+            return this->ptr;
+        }
+        inline __mem_checkptr_constexpr T* unsafe() const
+        {
+            return this->ptr;
+        }
+        inline __mem_checkptr_constexpr T* get() const
+        {
+            return static_cast<T*>(checkMemory[(bool)this->ptr](this->ptr));
+        }
+
+        inline __mem_checkptr_constexpr T* operator->() const
+        {
+            return static_cast<T*>(checkMemory[(bool)this->ptr](this->ptr));
+        }
+        inline __mem_checkptr_constexpr T& operator*() const
+        {
+            return *static_cast<T*>(checkMemory[(bool)this->ptr](this->ptr));
+        }
+    private:
+        T* ptr;
+    };
+
     class Memory final
     {
         inline static struct Initializer final

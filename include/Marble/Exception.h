@@ -378,12 +378,6 @@ namespace Marble
     Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
     switch (setjmp(*Marble::ExceptionHandler::threadBuf)) \
     { \
-    case 0: \
-        {
-
-#define lowLevelExceptionsSectionEnd \
-        } \
-        break; \
     case SIGILL: \
         { \
             Marble::ExceptionHandler::threadBuffers.pop_back(); \
@@ -420,7 +414,9 @@ namespace Marble
             throw Marble::AbortException(__llex_fileData); \
         } \
         break; \
-    } \
+    }
+
+#define lowLevelExceptionsSectionEnd \
     Marble::ExceptionHandler::threadBuffers.pop_back(); \
     Marble::ExceptionHandler::threadBuf = &Marble::ExceptionHandler::threadBuffers.back().buffer; \
 }
