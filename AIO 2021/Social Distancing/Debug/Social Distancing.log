@@ -1,0 +1,3 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Social Distancing\main.cpp(23,16): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+  Social Distancing.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Debug\Social Distancing.exe

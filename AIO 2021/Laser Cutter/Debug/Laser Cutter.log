@@ -1,0 +1,7 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Laser Cutter\main.cpp(18,33): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Laser Cutter\main.cpp(22,26): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Laser Cutter\main.cpp(36,16): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Laser Cutter\main.cpp(37,16): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Laser Cutter\main.cpp(45,23): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data
+  Laser Cutter.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Debug\Laser Cutter.exe

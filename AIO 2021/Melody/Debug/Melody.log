@@ -1,0 +1,6 @@
+﻿  main.cpp
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Melody\main.cpp(19,16): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Melody\main.cpp(45,15): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Melody\main.cpp(47,19): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Melody\main.cpp(49,19): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+  Melody.vcxproj -> C:\Users\Administrator\Documents\GitHub\AIO-Practice\AIO 2021\Debug\Melody.exe
